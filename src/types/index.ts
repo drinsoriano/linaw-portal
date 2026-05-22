@@ -94,39 +94,39 @@ export interface AuditIndicator {
 
 export interface IndicatorResponse {
   indicatorId: string;
-  score: number | null; // 1–5
+  barangayScore: number | null;
   notes: string;
   evidenceCount: number;
-  cenroScore?: number | null;
+  validatedScore?: number | null;
 }
 
 export type SubmissionStatus =
   | "DRAFT"
-  | "SUBMITTED"
-  | "RETURNED_ENCODER"
-  | "REVIEWED"
-  | "RETURNED_CAPTAIN"
-  | "VALIDATED"
-  | "REJECTED";
+  | "SUBMITTED_TO_CAPTAIN"
+  | "RETURNED_TO_ENCODER"
+  | "APPROVED_BY_CAPTAIN"
+  | "RETURNED_TO_CAPTAIN"
+  | "VALIDATED_BY_CENRO"
+  | "REJECTED_BY_CENRO";
 
 export const STATUS_LABELS: Record<SubmissionStatus, string> = {
   DRAFT: "Draft",
-  SUBMITTED: "Submitted",
-  RETURNED_ENCODER: "Returned to Encoder",
-  REVIEWED: "Reviewed",
-  RETURNED_CAPTAIN: "Returned to Captain",
-  VALIDATED: "Validated",
-  REJECTED: "Rejected",
+  SUBMITTED_TO_CAPTAIN: "Submitted to Captain",
+  RETURNED_TO_ENCODER: "Returned to Encoder",
+  APPROVED_BY_CAPTAIN: "Approved by Captain",
+  RETURNED_TO_CAPTAIN: "Returned to Captain",
+  VALIDATED_BY_CENRO: "Validated by CENRO",
+  REJECTED_BY_CENRO: "Rejected by CENRO",
 };
 
 export const STATUS_COLORS: Record<SubmissionStatus, string> = {
   DRAFT: "bg-slate-100 text-slate-700",
-  SUBMITTED: "bg-blue-100 text-blue-700",
-  RETURNED_ENCODER: "bg-orange-100 text-orange-700",
-  REVIEWED: "bg-purple-100 text-purple-700",
-  RETURNED_CAPTAIN: "bg-amber-100 text-amber-700",
-  VALIDATED: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-700",
+  SUBMITTED_TO_CAPTAIN: "bg-blue-100 text-blue-700",
+  RETURNED_TO_ENCODER: "bg-orange-100 text-orange-700",
+  APPROVED_BY_CAPTAIN: "bg-purple-100 text-purple-700",
+  RETURNED_TO_CAPTAIN: "bg-amber-100 text-amber-700",
+  VALIDATED_BY_CENRO: "bg-green-100 text-green-700",
+  REJECTED_BY_CENRO: "bg-red-100 text-red-700",
 };
 
 export interface AuditSubmission {
@@ -137,6 +137,8 @@ export interface AuditSubmission {
   responses: IndicatorResponse[];
   overallScore?: number;
   categoryScores?: Record<IndicatorCategory, number>;
+  validatedOverallScore?: number;
+  validatedCategoryScores?: Record<IndicatorCategory, number>;
   encoderRemarks?: string;
   captainRemarks?: string;
   cenroRemarks?: string;

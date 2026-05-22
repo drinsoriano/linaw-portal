@@ -57,7 +57,7 @@ export function AuditChecklistPage() {
     const init: Record<string, IndicatorState> = {};
     indicators.forEach((ind) => {
       const resp = submission.responses.find((r) => r.indicatorId === ind.id);
-      init[ind.id] = { score: resp?.score ?? null, notes: resp?.notes ?? "" };
+      init[ind.id] = { score: resp?.barangayScore ?? null, notes: resp?.notes ?? "" };
     });
     return init;
   });
@@ -100,7 +100,7 @@ export function AuditChecklistPage() {
             Submit to Captain
           </Button>
         )}
-        {hasRole("BARANGAY_CAPTAIN") && submission.status === "SUBMITTED" && (
+        {hasRole("BARANGAY_CAPTAIN") && submission.status === "SUBMITTED_TO_CAPTAIN" && (
           <>
             <Button size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
               Return to Encoder
@@ -330,7 +330,7 @@ export function AuditChecklistPage() {
                           </div>
 
                           {/* CENRO override */}
-                          {hasRole("CENRO_EVALUATOR", "SYSTEM_ADMIN") && submission.status === "REVIEWED" && (
+                          {hasRole("CENRO_EVALUATOR", "SYSTEM_ADMIN") && submission.status === "APPROVED_BY_CAPTAIN" && (
                             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                               <p className="text-xs font-semibold text-blue-800 mb-2">CENRO Score Override</p>
                               <div className="flex gap-2">

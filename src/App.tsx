@@ -1,4 +1,4 @@
-import React from "react";
+import type { ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -14,7 +14,7 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { UserManagementPage } from "./pages/UserManagementPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
+function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   if (!isAuthenticated) {
