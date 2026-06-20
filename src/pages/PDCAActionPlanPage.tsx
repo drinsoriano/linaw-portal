@@ -11,7 +11,6 @@ import { Button } from "../components/ui/button";
 import { mockCorrectiveActions } from "../data/correctiveActions";
 import { submissions } from "../data/submissions";
 import { indicators } from "../data/indicators";
-import { effectiveScore } from "../lib/scoring";
 import { cn } from "../lib/utils";
 
 const CAP_STATUS_CONFIG = {
@@ -69,12 +68,11 @@ export function PDCAActionPlanPage() {
   const barangayName = user?.barangayName ?? "Bagong Kalsada";
 
   const sub = submissions.find((s) => s.barangayId === (user?.barangayId ?? "brgy-001")) ?? submissions[0];
-  const isValidated = sub.status === "VALIDATED_BY_CENRO";
   const flaggedIndicators = sub.responses
-    .filter((r) => { const s = effectiveScore(r, isValidated) ?? 0; return s < 3.41 && s > 0; })
+    .filter((r) => (r.cenroScore ?? r.score ?? 0) < 3.41 && (r.cenroScore ?? r.score ?? 0) > 0)
     .map((r) => {
       const ind = indicators.find((i) => i.id === r.indicatorId);
-      return { ...r, indicator: ind, score: effectiveScore(r, isValidated) ?? 0 };
+      return { ...r, indicator: ind, score: r.cenroScore ?? r.score ?? 0 };
     })
     .sort((a, b) => a.score - b.score);
 

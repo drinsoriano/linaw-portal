@@ -47,17 +47,6 @@ const CYCLE_ID_2024 = "cycle-2024";
 const DEMO_PREFILL = new Set([0]); // index 0 = brgy-001 (Bagong Kalsada)
 
 const STATUS_DISTRIBUTION: SubmissionStatus[] = [
-<<<<<<< HEAD
-  "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO",
-  "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO",
-  "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO",
-  "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO",
-  "APPROVED_BY_CAPTAIN", "APPROVED_BY_CAPTAIN", "APPROVED_BY_CAPTAIN", "APPROVED_BY_CAPTAIN", "APPROVED_BY_CAPTAIN",
-  "APPROVED_BY_CAPTAIN", "APPROVED_BY_CAPTAIN",
-  "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN",
-  "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN",
-  "RETURNED_TO_ENCODER", "RETURNED_TO_ENCODER",
-=======
   // brgy-001: DRAFT — Captain pre-filled for demo (DEMO_PREFILL index 0)
   "DRAFT",
   "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
@@ -69,7 +58,6 @@ const STATUS_DISTRIBUTION: SubmissionStatus[] = [
   "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
   "VALIDATED", "VALIDATED",
   "DRAFT", "DRAFT",
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
   "DRAFT", "DRAFT", "DRAFT", "DRAFT", "DRAFT",
   "DRAFT", "DRAFT", "DRAFT", "DRAFT", "DRAFT",
   "DRAFT", "DRAFT", "DRAFT", "DRAFT",
@@ -145,62 +133,39 @@ export const auditCycle = {
 
 export const submissions: AuditSubmission[] = barangays.map((brgy, idx) => {
   const status = STATUS_DISTRIBUTION[idx] ?? "DRAFT";
-<<<<<<< HEAD
-  const isScored = status === "VALIDATED_BY_CENRO" || status === "APPROVED_BY_CAPTAIN" || status === "SUBMITTED_TO_CAPTAIN" || status === "RETURNED_TO_ENCODER";
-=======
   const isScored = status === "VALIDATED" || (status === "DRAFT" && DEMO_PREFILL.has(idx));
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
 
   const responses: IndicatorResponse[] = indicators.map((ind) => ({
     indicatorId: ind.id,
-    barangayScore: isScored ? generateScore(ind.id, idx) : null,
+    score: isScored ? generateScore(ind.id, idx) : null,
     notes: isScored
       ? `Evidence gathered during field validation on ${new Date(2025, 0, 20 + idx % 15).toLocaleDateString("en-PH", { month: "long", day: "numeric" })}.`
       : "",
     evidenceCount: isScored ? Math.floor(seededRand(idx * 13 + ind.sortOrder) * 4) + 1 : 0,
-    validatedScore: status === "VALIDATED_BY_CENRO"
+    cenroScore: status === "VALIDATED"
       ? (seededRand(idx * 7 + ind.sortOrder) > 0.85 ? generateScore(ind.id, idx + 100) : undefined)
       : undefined,
   }));
 
+  // Compute category scores
   const categoryKeys = ["SWM_PROGRAMS", "COMMITTEE", "WASTE_COLLECTION_FEES", "ENV_COMMUNITY_IMPACT"] as const;
-
-  // Barangay-only scores (never touched by CENRO)
   const categoryScores: Record<string, number> = {};
+
   for (const cat of categoryKeys) {
     const catIndicators = indicators.filter((i) => i.category === cat);
     const catResponses = responses.filter((r) =>
-      catIndicators.some((i) => i.id === r.indicatorId) && r.barangayScore !== null
+      catIndicators.some((i) => i.id === r.indicatorId) && r.score !== null
     );
     if (catResponses.length > 0) {
-      const avg = catResponses.reduce((acc, r) => acc + (r.barangayScore ?? 0), 0) / catResponses.length;
+      const avg = catResponses.reduce((acc, r) => acc + (r.cenroScore ?? r.score ?? 0), 0) / catResponses.length;
       categoryScores[cat] = parseFloat(avg.toFixed(2));
     }
   }
+
   const catAvgs = Object.values(categoryScores);
   const overall = catAvgs.length > 0
     ? parseFloat((catAvgs.reduce((a, b) => a + b, 0) / catAvgs.length).toFixed(2))
     : undefined;
-
-  // Validated scores — only set for VALIDATED_BY_CENRO; uses validatedScore where CENRO overrode, barangayScore otherwise
-  const validatedCategoryScores: Record<string, number> = {};
-  let validatedOverall: number | undefined;
-  if (status === "VALIDATED_BY_CENRO") {
-    for (const cat of categoryKeys) {
-      const catIndicators = indicators.filter((i) => i.category === cat);
-      const catResponses = responses.filter((r) =>
-        catIndicators.some((i) => i.id === r.indicatorId) && r.barangayScore !== null
-      );
-      if (catResponses.length > 0) {
-        const avg = catResponses.reduce((acc, r) => acc + (r.validatedScore ?? r.barangayScore ?? 0), 0) / catResponses.length;
-        validatedCategoryScores[cat] = parseFloat(avg.toFixed(2));
-      }
-    }
-    const validatedCatAvgs = Object.values(validatedCategoryScores);
-    validatedOverall = validatedCatAvgs.length > 0
-      ? parseFloat((validatedCatAvgs.reduce((a, b) => a + b, 0) / validatedCatAvgs.length).toFixed(2))
-      : undefined;
-  }
 
   return {
     id: `sub-${brgy.id}`,
@@ -210,30 +175,11 @@ export const submissions: AuditSubmission[] = barangays.map((brgy, idx) => {
     responses,
     overallScore: isScored ? overall : undefined,
     categoryScores: isScored ? (categoryScores as Record<typeof categoryKeys[number], number>) : undefined,
-<<<<<<< HEAD
-    validatedOverallScore: status === "VALIDATED_BY_CENRO" ? validatedOverall : undefined,
-    validatedCategoryScores: status === "VALIDATED_BY_CENRO"
-      ? (validatedCategoryScores as Record<typeof categoryKeys[number], number>)
-      : undefined,
-    encoderRemarks: isScored ? "All indicators encoded with supporting evidence." : undefined,
-    captainRemarks: (status === "APPROVED_BY_CAPTAIN" || status === "VALIDATED_BY_CENRO")
-      ? "Reviewed and verified. Submission approved."
-      : undefined,
-    cenroRemarks: status === "VALIDATED_BY_CENRO"
-      ? "Field validation completed. Compliance scores finalized."
-      : undefined,
-    submittedAt: isScored ? `2025-02-${String(10 + (idx % 18)).padStart(2, "0")}` : undefined,
-    reviewedAt: (status === "APPROVED_BY_CAPTAIN" || status === "VALIDATED_BY_CENRO")
-      ? `2025-02-${String(20 + (idx % 8)).padStart(2, "0")}`
-      : undefined,
-    validatedAt: status === "VALIDATED_BY_CENRO"
-=======
     captainRemarks: status === "VALIDATED"
       ? "Self-assessment certified by Punong Barangay."
       : undefined,
     submittedAt: isScored ? `2025-05-${String(10 + (idx % 18)).padStart(2, "0")}` : undefined,
     validatedAt: status === "VALIDATED"
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
       ? `2025-03-${String(1 + (idx % 25)).padStart(2, "0")}`
       : undefined,
     createdAt: "2025-01-15",
@@ -252,10 +198,10 @@ export function getSubmissionById(id: string): AuditSubmission | undefined {
 // City-wide summary stats
 export const cityStats = {
   totalBarangays: barangays.length,
-  validated: submissions.filter((s) => s.status === "VALIDATED_BY_CENRO").length,
-  reviewed: submissions.filter((s) => s.status === "APPROVED_BY_CAPTAIN").length,
-  submitted: submissions.filter((s) => s.status === "SUBMITTED_TO_CAPTAIN").length,
-  draft: submissions.filter((s) => s.status === "DRAFT" || s.status === "RETURNED_TO_ENCODER").length,
+  validated: submissions.filter((s) => s.status === "VALIDATED").length,
+  reviewed: submissions.filter((s) => s.status === "REVIEWED").length,
+  submitted: submissions.filter((s) => s.status === "SUBMITTED").length,
+  draft: submissions.filter((s) => s.status === "DRAFT" || s.status === "RETURNED_ENCODER").length,
   fullyCompliant: submissions.filter((s) => (s.overallScore ?? 0) >= 4.21).length,
   mostlyCompliant: submissions.filter((s) => {
     const s2 = s.overallScore ?? 0;

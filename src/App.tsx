@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-import type { ReactNode } from "react";
-=======
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -26,8 +22,6 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { UserManagementPage } from "./pages/UserManagementPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
-<<<<<<< HEAD
-=======
 // CENRO pages
 import { CenroDashboard } from "./pages/cenro/CenroDashboard";
 import { EcaTrackerPage } from "./pages/cenro/EcaTrackerPage";
@@ -53,7 +47,6 @@ import { CitizenReportPage } from "./pages/public/CitizenReportPage";
 import { ContactSettingsPage } from "./pages/barangay/ContactSettingsPage";
 import { CenroContactPage } from "./pages/cenro/CenroContactPage";
 
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const location = useLocation();

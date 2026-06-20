@@ -14,7 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { finalOverallScore, finalCategoryScores } from "../lib/scoring";
 export function BarangayProfilePage() {
   const { user, hasRole } = useAuth();
   const navigate = useNavigate();
@@ -108,8 +107,8 @@ export function BarangayProfilePage() {
                             <p className="text-xs text-slate-500 truncate">{brgy.district}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            {sub && finalOverallScore(sub) != null ? (
-                              <p className="text-sm font-bold text-slate-900">{finalOverallScore(sub)!.toFixed(2)}</p>
+                            {sub?.overallScore ? (
+                              <p className="text-sm font-bold text-slate-900">{sub.overallScore.toFixed(2)}</p>
                             ) : (
                               <StatusBadge status={sub?.status ?? "DRAFT"} />
                             )}
@@ -192,14 +191,14 @@ export function BarangayProfilePage() {
                     <CardContent>
                       <div className="flex items-center gap-4 mb-4">
                         <StatusBadge status={selectedSub.status} />
-                        {finalOverallScore(selectedSub) != null && (
-                          <ScoreBadge score={finalOverallScore(selectedSub)!} size="md" />
+                        {selectedSub.overallScore && (
+                          <ScoreBadge score={selectedSub.overallScore} size="md" />
                         )}
                       </div>
 
-                      {finalCategoryScores(selectedSub) && (
+                      {selectedSub.categoryScores && (
                         <div className="grid grid-cols-2 gap-3">
-                          {Object.entries(finalCategoryScores(selectedSub)!).map(([cat, score]) => {
+                          {Object.entries(selectedSub.categoryScores).map(([cat, score]) => {
                             const labels: Record<string, string> = {
                               SWM_PROGRAMS: "SWM Programs",
                               COMMITTEE: "Committee",

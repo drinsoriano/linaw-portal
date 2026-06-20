@@ -14,7 +14,6 @@ import { IndicatorBarChart } from "../components/charts/IndicatorBarChart";
 import { CategoryRadarChart } from "../components/charts/CategoryRadarChart";
 import { CATEGORY_LABELS, CATEGORY_SHORT } from "../types";
 import type { IndicatorCategory } from "../types";
-import { effectiveScore, finalOverallScore, finalCategoryScores } from "../lib/scoring";
 import { cn } from "../lib/utils";
 
 const CATEGORY_KEYS: IndicatorCategory[] = [
@@ -45,8 +44,7 @@ export function ComplianceResultsPage() {
     const catInds = indicators.filter((i) => i.category === cat).sort((a, b) => a.sortOrder - b.sortOrder);
     return catInds.map((ind) => {
       const resp = selectedSub.responses.find((r) => r.indicatorId === ind.id);
-      const isValidated = selectedSub.status === "VALIDATED_BY_CENRO";
-      const score = resp ? (effectiveScore(resp, isValidated) ?? 0) : 0;
+      const score = resp?.cenroScore ?? resp?.score ?? 0;
       return { code: ind.code, name: ind.name, score };
     });
   };
@@ -54,7 +52,7 @@ export function ComplianceResultsPage() {
   // Radar data for selected barangay
   const radarData = CATEGORY_KEYS.map((cat) => ({
     category: CATEGORY_SHORT[cat],
-    score: finalCategoryScores(selectedSub)?.[cat] ?? 0,
+    score: selectedSub.categoryScores?.[cat] ?? 0,
     benchmark: 4.21,
   }));
 
@@ -63,7 +61,7 @@ export function ComplianceResultsPage() {
     const scores = validatedSubs
       .map((s) => {
         const r = s.responses.find((r2) => r2.indicatorId === ind.id);
-        return r ? (effectiveScore(r, s.status === "VALIDATED_BY_CENRO") ?? null) : null;
+        return r?.cenroScore ?? r?.score ?? null;
       })
       .filter((s): s is number => s !== null);
     const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
@@ -106,7 +104,6 @@ export function ComplianceResultsPage() {
               <div className="bg-white rounded-xl border border-slate-200 max-h-[calc(100vh-280px)] overflow-y-auto scrollbar-thin">
                 {filteredBarangays.map((b) => {
                   const sub = submissions.find((s) => s.barangayId === b.id);
-                  const listScore = sub ? finalOverallScore(sub) : undefined;
                   return (
                     <button
                       key={b.id}
@@ -120,11 +117,11 @@ export function ComplianceResultsPage() {
                         <p className="text-xs font-semibold text-slate-800">{b.name}</p>
                         <p className="text-[10px] text-slate-400">{b.district}</p>
                       </div>
-                      {listScore != null ? (
+                      {sub?.overallScore ? (
                         <span className={cn("text-xs font-bold",
-                          listScore >= 4.21 ? "text-green-700" : listScore >= 3.41 ? "text-blue-700" : "text-yellow-700"
+                          sub.overallScore >= 4.21 ? "text-green-700" : sub.overallScore >= 3.41 ? "text-blue-700" : "text-yellow-700"
                         )}>
-                          {listScore.toFixed(2)}
+                          {sub.overallScore.toFixed(2)}
                         </span>
                       ) : (
                         <StatusBadge status={sub?.status ?? "DRAFT"} />
@@ -147,32 +144,29 @@ export function ComplianceResultsPage() {
                     <p className="text-sm text-slate-500">{brgy?.district} · 2025 First Semester</p>
                     <div className="flex items-center gap-3 mt-3">
                       <StatusBadge status={selectedSub.status} />
-                      {finalOverallScore(selectedSub) != null && <ScoreBadge score={finalOverallScore(selectedSub)!} size="lg" />}
+                      {selectedSub.overallScore && <ScoreBadge score={selectedSub.overallScore} size="lg" />}
                     </div>
                   </div>
                   <div className="text-right">
-                    {finalOverallScore(selectedSub) != null && (() => {
-                      const fs = finalOverallScore(selectedSub)!;
-                      return (
-                        <>
-                          <p className="text-4xl font-black text-slate-900">{fs.toFixed(2)}</p>
-                          <p className="text-xs text-slate-500">Overall Score / 5.00</p>
-                          <p className={cn("text-xs font-medium mt-1",
-                            fs >= 4.21 ? "text-green-600" : "text-amber-600"
-                          )}>
-                            {fs >= 4.21 ? "✓ Meets benchmark" : `↓ ${(4.21 - fs).toFixed(2)} below benchmark`}
-                          </p>
-                        </>
-                      );
-                    })()}
+                    {selectedSub.overallScore && (
+                      <>
+                        <p className="text-4xl font-black text-slate-900">{selectedSub.overallScore.toFixed(2)}</p>
+                        <p className="text-xs text-slate-500">Overall Score / 5.00</p>
+                        <p className={cn("text-xs font-medium mt-1",
+                          selectedSub.overallScore >= 4.21 ? "text-green-600" : "text-amber-600"
+                        )}>
+                          {selectedSub.overallScore >= 4.21 ? "✓ Meets benchmark" : `↓ ${(4.21 - selectedSub.overallScore).toFixed(2)} below benchmark`}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Category scores */}
-                {finalCategoryScores(selectedSub) && (
+                {selectedSub.categoryScores && (
                   <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {CATEGORY_KEYS.map((cat) => {
-                      const score = finalCategoryScores(selectedSub)?.[cat] ?? 0;
+                      const score = selectedSub.categoryScores?.[cat] ?? 0;
                       return (
                         <div key={cat} className="bg-slate-50 rounded-xl p-3">
                           <p className="text-[10px] text-slate-500 font-medium">{CATEGORY_SHORT[cat]}</p>
@@ -205,12 +199,12 @@ export function ComplianceResultsPage() {
                 <CardContent className="pt-0">
                   <div className="space-y-2 max-h-[220px] overflow-y-auto scrollbar-thin">
                     {selectedSub.responses
-                      .filter((r) => { const s = effectiveScore(r, selectedSub.status === "VALIDATED_BY_CENRO") ?? 0; return s < 4.21 && s > 0; })
-                      .sort((a, b) => (effectiveScore(a, selectedSub.status === "VALIDATED_BY_CENRO") ?? 0) - (effectiveScore(b, selectedSub.status === "VALIDATED_BY_CENRO") ?? 0))
+                      .filter((r) => (r.cenroScore ?? r.score ?? 0) < 4.21 && (r.cenroScore ?? r.score ?? 0) > 0)
+                      .sort((a, b) => (a.cenroScore ?? a.score ?? 0) - (b.cenroScore ?? b.score ?? 0))
                       .slice(0, 12)
                       .map((r) => {
                         const ind = indicators.find((i) => i.id === r.indicatorId);
-                        const score = effectiveScore(r, selectedSub.status === "VALIDATED_BY_CENRO") ?? 0;
+                        const score = r.cenroScore ?? r.score ?? 0;
                         return (
                           <div key={r.indicatorId} className="flex items-center gap-2">
                             <span className={cn("text-[10px] font-bold rounded px-1.5 py-0.5 flex-shrink-0",

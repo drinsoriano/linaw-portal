@@ -66,13 +66,8 @@ export function AuditChecklistPage() {
   const [localScores, setLocalScores] = useState<Record<string, IndicatorState>>(() => {
     const init: Record<string, IndicatorState> = {};
     indicators.forEach((ind) => {
-<<<<<<< HEAD
-      const resp = submission.responses.find((r) => r.indicatorId === ind.id);
-      init[ind.id] = { score: resp?.barangayScore ?? null, notes: resp?.notes ?? "" };
-=======
       const resp = submission?.responses.find((r) => r.indicatorId === ind.id);
       init[ind.id] = { score: resp?.score ?? null, notes: resp?.notes ?? "" };
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
     });
     return init;
   });
@@ -153,19 +148,6 @@ export function AuditChecklistPage() {
             Reopen
           </Button>
         )}
-<<<<<<< HEAD
-        {hasRole("BARANGAY_CAPTAIN") && submission.status === "SUBMITTED_TO_CAPTAIN" && (
-          <>
-            <Button size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
-              Return to Encoder
-            </Button>
-            <Button size="sm" className="bg-green-600 hover:bg-green-700">
-              Approve & Send to CENRO
-            </Button>
-          </>
-        )}
-=======
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
       </PageHeader>
 
       {/* Councilor read-only notice */}
@@ -468,29 +450,6 @@ export function AuditChecklistPage() {
                               )}
                             </div>
                           </div>
-<<<<<<< HEAD
-
-                          {/* CENRO override */}
-                          {hasRole("CENRO_EVALUATOR", "SYSTEM_ADMIN") && submission.status === "APPROVED_BY_CAPTAIN" && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                              <p className="text-xs font-semibold text-blue-800 mb-2">CENRO Score Override</p>
-                              <div className="flex gap-2">
-                                {[1, 2, 3, 4, 5].map((score) => (
-                                  <button
-                                    key={score}
-                                    className="h-8 w-8 rounded-lg border-2 border-blue-200 text-xs font-bold text-blue-700 hover:border-blue-500 hover:bg-blue-100 transition-colors"
-                                  >
-                                    {score}
-                                  </button>
-                                ))}
-                                <span className="text-xs text-blue-600 self-center ml-2">
-                                  CENRO override (optional)
-                                </span>
-                              </div>
-                            </div>
-                          )}
-=======
->>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
                         </div>
                       )}
                     </CardContent>

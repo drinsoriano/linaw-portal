@@ -1,5 +1,4 @@
 import type {
-  AuditSubmission,
   ComplianceLevel,
   IndicatorCategory,
   IndicatorResponse,
@@ -48,19 +47,8 @@ export function requiresCAP(score: number): boolean {
   return score < CAP_THRESHOLD;
 }
 
-export function effectiveScore(response: IndicatorResponse, validated = false): number | null {
-  if (validated) return response.validatedScore ?? response.barangayScore ?? null;
-  return response.barangayScore ?? null;
-}
-
-export function finalOverallScore(sub: AuditSubmission): number | undefined {
-  if (sub.status === "VALIDATED_BY_CENRO") return sub.validatedOverallScore ?? sub.overallScore;
-  return sub.overallScore;
-}
-
-export function finalCategoryScores(sub: AuditSubmission): Record<IndicatorCategory, number> | undefined {
-  if (sub.status === "VALIDATED_BY_CENRO") return sub.validatedCategoryScores ?? sub.categoryScores;
-  return sub.categoryScores;
+export function effectiveScore(response: IndicatorResponse): number | null {
+  return response.cenroScore ?? response.score ?? null;
 }
 
 export function getLikertLabel(score: number): string {
@@ -77,23 +65,22 @@ export function getLikertLabel(score: number): string {
 export function computeCategoryScore(
   responses: IndicatorResponse[],
   indicators: AuditIndicator[],
-  category: IndicatorCategory,
-  validated = false
+  category: IndicatorCategory
 ): CategoryScoreResult {
   const catIndicators = indicators.filter((i) => i.category === category);
   const catResponses = responses.filter((r) =>
     catIndicators.some((i) => i.id === r.indicatorId)
   );
-  const answered = catResponses.filter((r) => effectiveScore(r, validated) !== null);
-  const sum = answered.reduce((acc, r) => acc + (effectiveScore(r, validated) ?? 0), 0);
+  const answered = catResponses.filter((r) => effectiveScore(r) !== null);
+  const sum = answered.reduce((acc, r) => acc + (effectiveScore(r) ?? 0), 0);
   const avg = answered.length > 0 ? sum / answered.length : 0;
 
   const belowBenchmark = answered
-    .filter((r) => (effectiveScore(r, validated) ?? 0) < BENCHMARK)
+    .filter((r) => (effectiveScore(r) ?? 0) < BENCHMARK)
     .map((r) => r.indicatorId);
 
   const requireingCAP = answered
-    .filter((r) => (effectiveScore(r, validated) ?? 0) < CAP_THRESHOLD)
+    .filter((r) => (effectiveScore(r) ?? 0) < CAP_THRESHOLD)
     .map((r) => r.indicatorId);
 
   return {
@@ -109,8 +96,7 @@ export function computeCategoryScore(
 
 export function computeOverallScore(
   responses: IndicatorResponse[],
-  indicators: AuditIndicator[],
-  validated = false
+  indicators: AuditIndicator[]
 ): OverallScoreResult {
   const categories: IndicatorCategory[] = [
     "SWM_PROGRAMS",
@@ -120,7 +106,7 @@ export function computeOverallScore(
   ];
 
   const breakdown = categories.map((cat) =>
-    computeCategoryScore(responses, indicators, cat, validated)
+    computeCategoryScore(responses, indicators, cat)
   );
 
   const scoredCategories = breakdown.filter((c) => c.answeredCount > 0);

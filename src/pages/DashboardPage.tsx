@@ -16,7 +16,6 @@ import { Button } from "../components/ui/button";
 import { barangays } from "../data/barangays";
 import { submissions, cityStats, trendData } from "../data/submissions";
 import { useNavigate } from "react-router-dom";
-import { finalOverallScore } from "../lib/scoring";
 import { CATEGORY_SHORT } from "../types";
 
 const CITY_CATEGORY_AVERAGES = {
@@ -39,13 +38,13 @@ export function DashboardPage() {
 
   // Build barangay score chart data
   const chartData = submissions
-    .filter((s) => finalOverallScore(s) !== undefined)
-    .sort((a, b) => (finalOverallScore(b) ?? 0) - (finalOverallScore(a) ?? 0))
+    .filter((s) => s.overallScore !== undefined)
+    .sort((a, b) => (b.overallScore ?? 0) - (a.overallScore ?? 0))
     .map((s) => {
       const brgy = barangays.find((b) => b.id === s.barangayId);
       return {
         name: brgy?.name ?? s.barangayId,
-        score: finalOverallScore(s) ?? 0,
+        score: s.overallScore ?? 0,
         status: s.status,
       };
     });
@@ -207,9 +206,9 @@ export function DashboardPage() {
                         </p>
                         <StatusBadge status={sub.status} />
                       </div>
-                      {finalOverallScore(sub) != null && (
+                      {sub.overallScore && (
                         <span className="text-xs font-bold text-slate-700">
-                          {finalOverallScore(sub)!.toFixed(2)}
+                          {sub.overallScore.toFixed(2)}
                         </span>
                       )}
                     </li>

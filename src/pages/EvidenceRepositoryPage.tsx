@@ -1,7 +1,7 @@
 import { useState, type ElementType } from "react";
 import {
   FileImage, FileText, File, Upload, Search, Filter,
-  Download, Eye, Trash2, FolderOpen, CheckCircle2, Info,
+  Download, Eye, Trash2, FolderOpen, CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { PageHeader } from "../components/shared/PageHeader";
@@ -105,14 +105,6 @@ export function EvidenceRepositoryPage() {
           </Button>
         )}
       </PageHeader>
-
-      <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-        <Info className="h-3.5 w-3.5 flex-shrink-0" />
-        <span>
-          <span className="font-semibold">Prototype notice:</span> Uploaded file previews are session-based.
-          File metadata is saved locally, but actual files are not permanently stored in this frontend-only prototype.
-        </span>
-      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -251,11 +243,6 @@ export function EvidenceRepositoryPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-lg font-bold text-slate-900 mb-1">Upload Evidence</h3>
             <p className="text-sm text-slate-500 mb-4">Upload supporting documents for your audit indicators</p>
-
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 mb-3">
-              <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-              <span>File previews are session-based. Metadata is saved locally; actual files are not permanently stored.</span>
-            </div>
 
             <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-[#16a34a] transition-colors cursor-pointer">
               <Upload className="h-10 w-10 text-slate-300 mx-auto" />

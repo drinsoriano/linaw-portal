@@ -70,7 +70,7 @@ export function ReportsPage() {
   const [generating, setGenerating] = useState(false);
 
   const validatedBarangays = submissions
-    .filter((s) => s.status === "VALIDATED_BY_CENRO" || s.status === "APPROVED_BY_CAPTAIN")
+    .filter((s) => s.status === "VALIDATED" || s.status === "REVIEWED")
     .map((s) => barangays.find((b) => b.id === s.barangayId))
     .filter(Boolean);
 
