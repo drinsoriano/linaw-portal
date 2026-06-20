@@ -22,8 +22,8 @@ export function BarangayProfilePage() {
   const [districtFilter, setDistrictFilter] = useState<string>("All");
   const [selectedBarangay, setSelectedBarangay] = useState<string | null>(null);
 
-  // Restrict encoder/captain to own barangay
-  const isRestricted = hasRole("BARANGAY_ENCODER", "BARANGAY_CAPTAIN");
+  // Restrict barangay-scoped users to own barangay
+  const isRestricted = hasRole("BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN");
   const visibleBarangays = isRestricted && user?.barangayId
     ? barangays.filter((b) => b.id === user.barangayId)
     : barangays;

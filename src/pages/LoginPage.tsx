@@ -11,29 +11,42 @@ import { cn } from "../lib/utils";
 
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   SYSTEM_ADMIN: "Full access to all modules, user management, and system configuration.",
-  CENRO_EVALUATOR: "Validate submissions, monitor city-wide compliance, approve reports.",
-  BARANGAY_ENCODER: "Encode audit checklist, upload evidence, submit for barangay approval.",
-  BARANGAY_CAPTAIN: "Review and approve barangay audit submissions to CENRO.",
-  RESEARCHER: "Analyze compliance data, generate reports, and create PDCA recommendations.",
-  PUBLIC_VIEWER: "View public summary dashboard only.",
+  CENRO_EVALUATOR: "Monitor city-wide compliance, validate ECA reports, issue feedback to barangays.",
+  BARANGAY_SECRETARY: "Encode ECA + RA 9003 checklist, upload evidence, submit for committee review.",
+  BARANGAY_COUNCILOR: "Committee Chair on Environment — review and endorse barangay SWM reports to the Captain.",
+  BARANGAY_CAPTAIN: "Certify and submit reports to CENRO, respond to CENRO feedback.",
+  RESEARCHER: "Analyze compliance data, generate reports, access root cause analysis tools.",
+  CITIZEN: "View public dashboard and submit waste-related concerns.",
 };
 
 const ROLE_ICONS: Record<UserRole, string> = {
   SYSTEM_ADMIN: "🛡️",
   CENRO_EVALUATOR: "🏛️",
-  BARANGAY_ENCODER: "📝",
+  BARANGAY_SECRETARY: "📋",
+  BARANGAY_COUNCILOR: "👤",
   BARANGAY_CAPTAIN: "👨‍💼",
   RESEARCHER: "🔬",
-  PUBLIC_VIEWER: "👁️",
+  CITIZEN: "🌿",
+};
+
+const ROLE_EMAIL: Record<UserRole, string> = {
+  SYSTEM_ADMIN: "admin@linaw.calamba.gov.ph",
+  CENRO_EVALUATOR: "cenro@calamba.gov.ph",
+  BARANGAY_SECRETARY: "secretary.bagongkalsada@linaw.calamba.gov.ph",
+  BARANGAY_COUNCILOR: "councilor.bagongkalsada@linaw.calamba.gov.ph",
+  BARANGAY_CAPTAIN: "captain.bagongkalsada@linaw.calamba.gov.ph",
+  RESEARCHER: "researcher@linaw.calamba.gov.ph",
+  CITIZEN: "citizen@linaw.calamba.gov.ph",
 };
 
 const ROLES_ORDER: UserRole[] = [
-  "SYSTEM_ADMIN",
   "CENRO_EVALUATOR",
+  "BARANGAY_SECRETARY",
+  "BARANGAY_COUNCILOR",
   "BARANGAY_CAPTAIN",
-  "BARANGAY_ENCODER",
   "RESEARCHER",
-  "PUBLIC_VIEWER",
+  "CITIZEN",
+  "SYSTEM_ADMIN",
 ];
 
 export function LoginPage() {
@@ -50,8 +63,8 @@ export function LoginPage() {
     await new Promise((r) => setTimeout(r, 600));
     login(selectedRole);
     setIsLoading(false);
-    const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/dashboard";
-    navigate(from, { replace: true });
+    const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+    navigate(from ?? "/", { replace: true });
   };
 
   return (
@@ -83,7 +96,7 @@ export function LoginPage() {
             {[
               { label: "54", sub: "Barangays Monitored" },
               { label: "39", sub: "Audit Indicators" },
-              { label: "4", sub: "PDCA Phases" },
+              { label: "13", sub: "System Modules" },
               { label: "4.21", sub: "Compliance Benchmark" },
             ].map((stat) => (
               <div key={stat.label} className="bg-white/10 rounded-xl p-4">
@@ -103,8 +116,8 @@ export function LoginPage() {
       </div>
 
       {/* Right panel — login form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-white lg:rounded-l-3xl shadow-2xl">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-6 bg-white lg:rounded-l-3xl shadow-2xl overflow-y-auto">
+        <div className="w-full max-w-md py-4">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <div className="h-10 w-10 rounded-xl bg-[#16a34a] flex items-center justify-center">
@@ -118,13 +131,13 @@ export function LoginPage() {
 
           <h2 className="text-2xl font-bold text-slate-900">Sign in</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Select your role and enter your credentials to access the portal.
+            Select your role to access the portal.
           </p>
 
           {/* Role selector */}
           <div className="mt-6">
             <Label className="text-slate-700 font-semibold text-sm mb-3 block">
-              Select User Role
+              Select User Role (Demo)
             </Label>
             <div className="grid grid-cols-1 gap-2">
               {ROLES_ORDER.map((role) => (
@@ -165,14 +178,8 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 className="mt-1.5"
-                defaultValue={
-                  selectedRole === "SYSTEM_ADMIN" ? "admin@linaw.calamba.gov.ph" :
-                  selectedRole === "CENRO_EVALUATOR" ? "cenro@calamba.gov.ph" :
-                  selectedRole === "BARANGAY_ENCODER" ? "encoder.bagongkalsada@linaw.calamba.gov.ph" :
-                  selectedRole === "BARANGAY_CAPTAIN" ? "captain.bagongkalsada@linaw.calamba.gov.ph" :
-                  selectedRole === "RESEARCHER" ? "researcher@linaw.calamba.gov.ph" :
-                  "public@linaw.calamba.gov.ph"
-                }
+                value={selectedRole ? ROLE_EMAIL[selectedRole] : ""}
+                readOnly
                 key={selectedRole}
               />
             </div>
@@ -198,7 +205,7 @@ export function LoginPage() {
           <Button
             onClick={handleLogin}
             disabled={!selectedRole || isLoading}
-            className="mt-6 w-full h-11 text-base gap-2"
+            className="mt-6 w-full h-11 text-base gap-2 bg-[#16a34a] hover:bg-green-700"
           >
             {isLoading ? (
               <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />

@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Building2, ClipboardList, FolderOpen,
   BarChart3, GitBranch, SearchCode, FileText,
   Users, Settings, LogOut, Leaf, ChevronLeft, ChevronRight,
-  Shield,
+  Shield, MessageSquare, Truck, Wallet, Recycle,
+  AlertCircle, BookOpen, Trophy, Globe, Megaphone, Phone,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../context/AuthContext";
@@ -16,79 +17,89 @@ interface NavItem {
   to: string;
   icon: React.ElementType;
   roles: UserRole[];
-  badge?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+interface NavSection {
+  title: string;
+  items: NavItem[];
+  visibleTo: UserRole[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Dashboard",
-    to: "/dashboard",
-    icon: LayoutDashboard,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "BARANGAY_ENCODER", "BARANGAY_CAPTAIN", "RESEARCHER", "PUBLIC_VIEWER"],
+    title: "CENRO",
+    visibleTo: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"],
+    items: [
+      { label: "City Overview", to: "/cenro/dashboard", icon: LayoutDashboard, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "ECA Tracker", to: "/cenro/eca-tracker", icon: ClipboardList, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "Performance Ranking", to: "/cenro/ranking", icon: Trophy, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "Hauler Accreditation", to: "/cenro/haulers", icon: Truck, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "Feedback Management", to: "/cenro/feedback", icon: MessageSquare, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "Compliance Results", to: "/results", icon: BarChart3, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "Reports", to: "/reports", icon: FileText, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "Contact Info", to: "/cenro/contact", icon: Phone, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+    ],
   },
   {
-    label: "Barangay Profile",
-    to: "/barangays",
-    icon: Building2,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "BARANGAY_ENCODER", "BARANGAY_CAPTAIN", "RESEARCHER"],
+    title: "My Barangay",
+    visibleTo: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"],
+    items: [
+      { label: "Dashboard", to: "/barangay/dashboard", icon: LayoutDashboard, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "ECA Report", to: "/barangay/eca", icon: BookOpen, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "RA 9003 Audit", to: "/audit", icon: ClipboardList, roles: ["BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "Evidence Repository", to: "/evidence", icon: FolderOpen, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "Collection Monitoring", to: "/barangay/collection", icon: Truck, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "Recycler Registry", to: "/barangay/recyclers", icon: Recycle, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "Financial Summary", to: "/barangay/financial", icon: Wallet, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "Incident Reports", to: "/barangay/incidents", icon: AlertCircle, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "IEC Activities", to: "/barangay/iec", icon: Megaphone, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "CENRO Feedback", to: "/barangay/feedback", icon: MessageSquare, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+      { label: "PDCA Action Plan", to: "/action-plan", icon: GitBranch, roles: ["BARANGAY_CAPTAIN", "BARANGAY_SECRETARY"] },
+      { label: "Contact Settings", to: "/barangay/contact", icon: Phone, roles: ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"] },
+    ],
   },
   {
-    label: "Audit Checklist",
-    to: "/audit",
-    icon: ClipboardList,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "BARANGAY_ENCODER", "BARANGAY_CAPTAIN", "RESEARCHER"],
+    title: "Research & Analytics",
+    visibleTo: ["RESEARCHER"],
+    items: [
+      { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard, roles: ["RESEARCHER"] },
+      { label: "Compliance Results", to: "/results", icon: BarChart3, roles: ["RESEARCHER"] },
+      { label: "Barangay Profiles", to: "/barangays", icon: Building2, roles: ["RESEARCHER"] },
+      { label: "Audit Checklist", to: "/audit", icon: ClipboardList, roles: ["RESEARCHER"] },
+      { label: "Root Cause Analysis", to: "/rca", icon: SearchCode, roles: ["RESEARCHER"] },
+      { label: "PDCA Action Plan", to: "/action-plan", icon: GitBranch, roles: ["RESEARCHER"] },
+      { label: "Reports", to: "/reports", icon: FileText, roles: ["RESEARCHER"] },
+    ],
   },
   {
-    label: "Evidence Repository",
-    to: "/evidence",
-    icon: FolderOpen,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "BARANGAY_ENCODER", "BARANGAY_CAPTAIN", "RESEARCHER"],
+    title: "System Administration",
+    visibleTo: ["SYSTEM_ADMIN"],
+    items: [
+      { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard, roles: ["SYSTEM_ADMIN"] },
+      { label: "Barangay Profiles", to: "/barangays", icon: Building2, roles: ["SYSTEM_ADMIN"] },
+      { label: "Audit Checklist", to: "/audit", icon: ClipboardList, roles: ["SYSTEM_ADMIN"] },
+      { label: "Root Cause Analysis", to: "/rca", icon: SearchCode, roles: ["SYSTEM_ADMIN"] },
+      { label: "User Management", to: "/users", icon: Users, roles: ["SYSTEM_ADMIN"] },
+      { label: "System Settings", to: "/settings", icon: Settings, roles: ["SYSTEM_ADMIN"] },
+    ],
   },
   {
-    label: "Compliance Results",
-    to: "/results",
-    icon: BarChart3,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "BARANGAY_ENCODER", "BARANGAY_CAPTAIN", "RESEARCHER"],
-  },
-  {
-    label: "PDCA Action Plan",
-    to: "/action-plan",
-    icon: GitBranch,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "BARANGAY_CAPTAIN", "RESEARCHER"],
-  },
-  {
-    label: "Root Cause Analysis",
-    to: "/rca",
-    icon: SearchCode,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "RESEARCHER"],
-  },
-  {
-    label: "Reports",
-    to: "/reports",
-    icon: FileText,
-    roles: ["SYSTEM_ADMIN", "CENRO_EVALUATOR", "RESEARCHER"],
-  },
-  {
-    label: "User Management",
-    to: "/users",
-    icon: Users,
-    roles: ["SYSTEM_ADMIN"],
-  },
-  {
-    label: "System Settings",
-    to: "/settings",
-    icon: Settings,
-    roles: ["SYSTEM_ADMIN"],
+    title: "Public",
+    visibleTo: ["CITIZEN"],
+    items: [
+      { label: "Open Data Dashboard", to: "/public", icon: Globe, roles: ["CITIZEN"] },
+    ],
   },
 ];
 
 const ROLE_COLORS: Record<UserRole, string> = {
   SYSTEM_ADMIN: "bg-purple-100 text-purple-800",
   CENRO_EVALUATOR: "bg-blue-100 text-blue-800",
-  BARANGAY_ENCODER: "bg-green-100 text-green-800",
+  BARANGAY_SECRETARY: "bg-green-100 text-green-800",
+  BARANGAY_COUNCILOR: "bg-teal-100 text-teal-800",
   BARANGAY_CAPTAIN: "bg-emerald-100 text-emerald-800",
   RESEARCHER: "bg-amber-100 text-amber-800",
-  PUBLIC_VIEWER: "bg-slate-100 text-slate-600",
+  CITIZEN: "bg-slate-100 text-slate-600",
 };
 
 export function Sidebar() {
@@ -96,14 +107,14 @@ export function Sidebar() {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => user && item.roles.includes(user.role)
-  );
-
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  const visibleSections = NAV_SECTIONS.filter(
+    (section) => user && section.visibleTo.includes(user.role)
+  );
 
   return (
     <aside
@@ -159,31 +170,47 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 scrollbar-thin">
-        <ul className="space-y-0.5 px-2">
-          {visibleItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.to}>
-                <NavLink
-                  to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
-                      isActive
-                        ? "bg-[#16a34a] text-white font-medium"
-                        : "text-green-200 hover:bg-[#1a4229] hover:text-white",
-                      collapsed && "justify-center px-2"
-                    )
-                  }
-                  title={collapsed ? item.label : undefined}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </NavLink>
-              </li>
-            );
-          })}
-        </ul>
+        {visibleSections.map((section) => {
+          const sectionItems = section.items.filter(
+            (item) => user && item.roles.includes(user.role)
+          );
+          if (sectionItems.length === 0) return null;
+
+          return (
+            <div key={section.title} className="mb-3">
+              {!collapsed && (
+                <p className="px-4 py-1 text-[9px] font-bold text-green-600 uppercase tracking-widest">
+                  {section.title}
+                </p>
+              )}
+              <ul className="space-y-0.5 px-2">
+                {sectionItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
+                            isActive
+                              ? "bg-[#16a34a] text-white font-medium"
+                              : "text-green-200 hover:bg-[#1a4229] hover:text-white",
+                            collapsed && "justify-center px-2"
+                          )
+                        }
+                        title={collapsed ? item.label : undefined}
+                      >
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </NavLink>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
 
       {/* Admin badge */}

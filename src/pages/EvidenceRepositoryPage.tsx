@@ -70,7 +70,7 @@ export function EvidenceRepositoryPage() {
   const [typeFilter, setTypeFilter] = useState<string>("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const isEncoder = hasRole("BARANGAY_ENCODER", "SYSTEM_ADMIN");
+  const isEncoder = hasRole("BARANGAY_SECRETARY", "SYSTEM_ADMIN");
 
   const filtered = mockFiles.filter((f) => {
     const matchSearch =

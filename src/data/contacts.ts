@@ -1,0 +1,65 @@
+import type { BarangayContactInfo, CenroContactInfo } from "../types";
+
+export const mockBarangayContacts: BarangayContactInfo[] = [
+  {
+    barangayId: "brgy-001",
+    callPhone: "(049) 545-1001",
+    smsPhone: "0917-101-0001",
+    email: "bagong.kalsada@calamba.gov.ph",
+    facebookPage: "Brgy. Bagong Kalsada Official",
+    messengerLink: "m.me/brgy.bagongkalsada",
+    updatedAt: "2025-05-10",
+    updatedBy: "Barangay Secretary",
+  },
+  {
+    barangayId: "brgy-002",
+    callPhone: "(049) 545-1002",
+    smsPhone: "0917-101-0002",
+    email: "banay.banay@calamba.gov.ph",
+    facebookPage: "Banay-Banay Barangay Hall",
+    messengerLink: "m.me/brgy.banaybanay",
+    updatedAt: "2025-05-12",
+    updatedBy: "Barangay Secretary",
+  },
+  {
+    barangayId: "brgy-003",
+    callPhone: "(049) 545-1003",
+    smsPhone: "0918-101-0003",
+    email: "banlic@calamba.gov.ph",
+    facebookPage: "Barangay Banlic Official Page",
+    messengerLink: "m.me/brgy.banlic",
+    updatedAt: "2025-05-14",
+    updatedBy: "Barangay Secretary",
+  },
+  {
+    barangayId: "brgy-008",
+    callPhone: "(049) 545-1008",
+    smsPhone: "0919-101-0008",
+    email: "canlubang@calamba.gov.ph",
+    facebookPage: "Canlubang Barangay Hall",
+    messengerLink: "m.me/brgy.canlubang",
+    updatedAt: "2025-05-18",
+    updatedBy: "Barangay Secretary",
+  },
+  {
+    barangayId: "brgy-018",
+    callPhone: "(049) 545-1018",
+    smsPhone: "0920-101-0018",
+    email: "makiling@calamba.gov.ph",
+    facebookPage: "Barangay Makiling Official",
+    messengerLink: "m.me/brgy.makiling",
+    updatedAt: "2025-05-20",
+    updatedBy: "Barangay Secretary",
+  },
+];
+
+export const mockCenroContact: CenroContactInfo = {
+  callPhone: "(049) 545-0100",
+  smsPhone: "0917-049-5450",
+  email: "cenro@calamba.gov.ph",
+  facebookPage: "CENRO Calamba City Official",
+  messengerLink: "m.me/cenro.calamba",
+  address: "CENRO Office, City Hall Compound, Calamba City, Laguna 4027",
+  updatedAt: "2025-05-01",
+  updatedBy: "CENRO Administrator",
+};

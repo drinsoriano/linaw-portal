@@ -18,16 +18,6 @@ export const mockUsers: AppUser[] = [
     createdAt: "2024-01-20",
   },
   {
-    id: "user-003",
-    name: "Juan dela Cruz",
-    email: "encoder.bagongkalsada@linaw.calamba.gov.ph",
-    role: "BARANGAY_ENCODER",
-    barangayId: "brgy-001",
-    barangayName: "Bagong Kalsada",
-    isActive: true,
-    createdAt: "2024-02-01",
-  },
-  {
     id: "user-004",
     name: "Hon. Roberto Dela Cruz",
     email: "captain.bagongkalsada@linaw.calamba.gov.ph",
@@ -47,19 +37,42 @@ export const mockUsers: AppUser[] = [
   },
   {
     id: "user-006",
-    name: "Public User",
-    email: "public@linaw.calamba.gov.ph",
-    role: "PUBLIC_VIEWER",
+    name: "Lucia Santos",
+    email: "secretary.bagongkalsada@linaw.calamba.gov.ph",
+    role: "BARANGAY_SECRETARY",
+    barangayId: "brgy-001",
+    barangayName: "Bagong Kalsada",
     isActive: true,
     createdAt: "2024-03-01",
   },
+  {
+    id: "user-007",
+    name: "Councilor Emilio Ramos",
+    email: "councilor.bagongkalsada@linaw.calamba.gov.ph",
+    role: "BARANGAY_COUNCILOR",
+    barangayId: "brgy-001",
+    barangayName: "Bagong Kalsada",
+    isActive: true,
+    createdAt: "2024-03-05",
+  },
+  {
+    id: "user-008",
+    name: "Citizen User",
+    email: "citizen@linaw.calamba.gov.ph",
+    role: "CITIZEN",
+    isActive: true,
+    createdAt: "2024-03-10",
+  },
 ];
 
+const byRole = (role: UserRole) => mockUsers.find((u) => u.role === role)!;
+
 export const ROLE_LOGIN_PRESETS: Record<UserRole, AppUser> = {
-  SYSTEM_ADMIN: mockUsers[0],
-  CENRO_EVALUATOR: mockUsers[1],
-  BARANGAY_ENCODER: mockUsers[2],
-  BARANGAY_CAPTAIN: mockUsers[3],
-  RESEARCHER: mockUsers[4],
-  PUBLIC_VIEWER: mockUsers[5],
+  SYSTEM_ADMIN: byRole("SYSTEM_ADMIN"),
+  CENRO_EVALUATOR: byRole("CENRO_EVALUATOR"),
+  BARANGAY_SECRETARY: byRole("BARANGAY_SECRETARY"),
+  BARANGAY_COUNCILOR: byRole("BARANGAY_COUNCILOR"),
+  BARANGAY_CAPTAIN: byRole("BARANGAY_CAPTAIN"),
+  RESEARCHER: byRole("RESEARCHER"),
+  CITIZEN: byRole("CITIZEN"),
 };

@@ -35,7 +35,7 @@ const radarData = Object.entries(CATEGORY_SHORT).map(([key, label]) => ({
 export function DashboardPage() {
   const { user, hasRole } = useAuth();
   const navigate = useNavigate();
-  const isPublic = hasRole("PUBLIC_VIEWER");
+  const isPublic = hasRole("CITIZEN");
 
   // Build barangay score chart data
   const chartData = submissions
@@ -62,7 +62,7 @@ export function DashboardPage() {
         title={
           isPublic
             ? "Public Compliance Dashboard"
-            : user?.role === "BARANGAY_ENCODER" || user?.role === "BARANGAY_CAPTAIN"
+            : user?.role === "BARANGAY_SECRETARY" || user?.role === "BARANGAY_COUNCILOR" || user?.role === "BARANGAY_CAPTAIN"
             ? `${user.barangayName} — Compliance Overview`
             : "City-Wide Compliance Dashboard"
         }

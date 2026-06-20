@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const canEdit = () =>
-    hasRole("SYSTEM_ADMIN", "BARANGAY_ENCODER");
+    hasRole("SYSTEM_ADMIN", "BARANGAY_SECRETARY");
 
   const canValidate = () =>
     hasRole("SYSTEM_ADMIN", "CENRO_EVALUATOR");

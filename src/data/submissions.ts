@@ -1,4 +1,4 @@
-import type { AuditSubmission, IndicatorResponse, SubmissionStatus } from "../types";
+import type { AuditSubmission, AuditCycle, IndicatorResponse, SubmissionStatus } from "../types";
 import { barangays } from "./barangays";
 import { indicators } from "./indicators";
 
@@ -41,8 +41,13 @@ function generateScore(indicatorId: string, barangayIdx: number): number {
 }
 
 const CYCLE_ID = "cycle-2025-1";
+const CYCLE_ID_2024 = "cycle-2024";
+
+// Indices whose DRAFT submissions are pre-filled for demo (enables Submit button immediately)
+const DEMO_PREFILL = new Set([0]); // index 0 = brgy-001 (Bagong Kalsada)
 
 const STATUS_DISTRIBUTION: SubmissionStatus[] = [
+<<<<<<< HEAD
   "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO",
   "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO",
   "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO", "VALIDATED_BY_CENRO",
@@ -52,24 +57,99 @@ const STATUS_DISTRIBUTION: SubmissionStatus[] = [
   "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN",
   "SUBMITTED_TO_CAPTAIN", "SUBMITTED_TO_CAPTAIN",
   "RETURNED_TO_ENCODER", "RETURNED_TO_ENCODER",
+=======
+  // brgy-001: DRAFT — Captain pre-filled for demo (DEMO_PREFILL index 0)
+  "DRAFT",
+  "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
+  "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
+  "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
+  "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
+  "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
+  "VALIDATED", "VALIDATED",
+  "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED", "VALIDATED",
+  "VALIDATED", "VALIDATED",
+  "DRAFT", "DRAFT",
+>>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
   "DRAFT", "DRAFT", "DRAFT", "DRAFT", "DRAFT",
   "DRAFT", "DRAFT", "DRAFT", "DRAFT", "DRAFT",
   "DRAFT", "DRAFT", "DRAFT", "DRAFT",
 ];
 
+// ─── 2024 Historical Cycle ────────────────────────────────────────────────────
+
+export const auditCycle2024: AuditCycle = {
+  id: CYCLE_ID_2024,
+  year: 2024,
+  label: "2024 Annual Audit",
+  status: "CLOSED",
+  startDate: "2024-01-01",
+  endDate: "2024-12-31",
+  closedAt: "2025-01-10",
+};
+
+export const submissions2024: AuditSubmission[] = barangays.map((brgy, idx) => {
+  const responses2024: IndicatorResponse[] = indicators.map((ind) => ({
+    indicatorId: ind.id,
+    score: generateScore(ind.id, idx + 500), // seed offset +500 → different-but-realistic scores
+    notes: "",
+    evidenceCount: Math.floor(seededRand(idx * 13 + ind.sortOrder + 500) * 3) + 1,
+  }));
+
+  const categoryKeys = ["SWM_PROGRAMS", "COMMITTEE", "WASTE_COLLECTION_FEES", "ENV_COMMUNITY_IMPACT"] as const;
+  const categoryScores2024: Record<string, number> = {};
+
+  for (const cat of categoryKeys) {
+    const catIndicators = indicators.filter((i) => i.category === cat);
+    const catResponses = responses2024.filter((r) =>
+      catIndicators.some((i) => i.id === r.indicatorId) && r.score !== null
+    );
+    if (catResponses.length > 0) {
+      const avg = catResponses.reduce((acc, r) => acc + (r.score ?? 0), 0) / catResponses.length;
+      categoryScores2024[cat] = parseFloat(avg.toFixed(2));
+    }
+  }
+
+  const catAvgs2024 = Object.values(categoryScores2024);
+  const overall2024 = catAvgs2024.length > 0
+    ? parseFloat((catAvgs2024.reduce((a, b) => a + b, 0) / catAvgs2024.length).toFixed(2))
+    : undefined;
+
+  return {
+    id: `sub-${brgy.id}-2024`,
+    barangayId: brgy.id,
+    cycleId: CYCLE_ID_2024,
+    status: "VALIDATED",
+    responses: responses2024,
+    overallScore: overall2024,
+    categoryScores: categoryScores2024 as Record<typeof categoryKeys[number], number>,
+    encoderRemarks: "All indicators encoded with supporting evidence.",
+    captainRemarks: "Reviewed and verified. Submission approved.",
+    submittedAt: `2024-02-${String(10 + (idx % 18)).padStart(2, "0")}`,
+    reviewedAt: `2024-02-${String(20 + (idx % 8)).padStart(2, "0")}`,
+    validatedAt: `2024-03-${String(1 + (idx % 25)).padStart(2, "0")}`,
+    createdAt: "2024-01-01",
+    updatedAt: "2024-03-15",
+  };
+});
+
+// ─── 2025 Active Cycle ────────────────────────────────────────────────────────
+
 export const auditCycle = {
   id: CYCLE_ID,
   year: 2025,
-  semester: "FIRST" as const,
-  label: "2025 — First Semester",
+  label: "2025 Annual Audit",
   status: "ACTIVE" as const,
-  startDate: "2025-01-15",
-  endDate: "2025-06-30",
+  startDate: "2025-01-01",
+  endDate: "2025-12-31",
 };
 
 export const submissions: AuditSubmission[] = barangays.map((brgy, idx) => {
   const status = STATUS_DISTRIBUTION[idx] ?? "DRAFT";
+<<<<<<< HEAD
   const isScored = status === "VALIDATED_BY_CENRO" || status === "APPROVED_BY_CAPTAIN" || status === "SUBMITTED_TO_CAPTAIN" || status === "RETURNED_TO_ENCODER";
+=======
+  const isScored = status === "VALIDATED" || (status === "DRAFT" && DEMO_PREFILL.has(idx));
+>>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
 
   const responses: IndicatorResponse[] = indicators.map((ind) => ({
     indicatorId: ind.id,
@@ -130,6 +210,7 @@ export const submissions: AuditSubmission[] = barangays.map((brgy, idx) => {
     responses,
     overallScore: isScored ? overall : undefined,
     categoryScores: isScored ? (categoryScores as Record<typeof categoryKeys[number], number>) : undefined,
+<<<<<<< HEAD
     validatedOverallScore: status === "VALIDATED_BY_CENRO" ? validatedOverall : undefined,
     validatedCategoryScores: status === "VALIDATED_BY_CENRO"
       ? (validatedCategoryScores as Record<typeof categoryKeys[number], number>)
@@ -146,6 +227,13 @@ export const submissions: AuditSubmission[] = barangays.map((brgy, idx) => {
       ? `2025-02-${String(20 + (idx % 8)).padStart(2, "0")}`
       : undefined,
     validatedAt: status === "VALIDATED_BY_CENRO"
+=======
+    captainRemarks: status === "VALIDATED"
+      ? "Self-assessment certified by Punong Barangay."
+      : undefined,
+    submittedAt: isScored ? `2025-05-${String(10 + (idx % 18)).padStart(2, "0")}` : undefined,
+    validatedAt: status === "VALIDATED"
+>>>>>>> 5df8785 (Initial RA9003, and ECA Reporting)
       ? `2025-03-${String(1 + (idx % 25)).padStart(2, "0")}`
       : undefined,
     createdAt: "2025-01-15",

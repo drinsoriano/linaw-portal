@@ -19,16 +19,17 @@ import { cn } from "../lib/utils";
 const ROLE_COLORS: Record<UserRole, string> = {
   SYSTEM_ADMIN: "bg-purple-100 text-purple-800 border-purple-200",
   CENRO_EVALUATOR: "bg-blue-100 text-blue-800 border-blue-200",
-  BARANGAY_ENCODER: "bg-green-100 text-green-800 border-green-200",
+  BARANGAY_SECRETARY: "bg-green-100 text-green-800 border-green-200",
+  BARANGAY_COUNCILOR: "bg-teal-100 text-teal-800 border-teal-200",
   BARANGAY_CAPTAIN: "bg-emerald-100 text-emerald-800 border-emerald-200",
   RESEARCHER: "bg-amber-100 text-amber-800 border-amber-200",
-  PUBLIC_VIEWER: "bg-slate-100 text-slate-600 border-slate-200",
+  CITIZEN: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const EXTENDED_USERS: AppUser[] = [
   ...mockUsers,
   { id: "user-007", name: "Nelia Gomez", email: "captain.laguerta@linaw.gov.ph", role: "BARANGAY_CAPTAIN", barangayId: "brgy-013", barangayName: "Laguerta", isActive: true, createdAt: "2024-03-01" },
-  { id: "user-008", name: "Rodrigo Pascual Jr.", email: "encoder.makiling@linaw.gov.ph", role: "BARANGAY_ENCODER", barangayId: "brgy-019", barangayName: "Makiling", isActive: true, createdAt: "2024-03-05" },
+  { id: "user-008", name: "Rodrigo Pascual Jr.", email: "secretary.makiling@linaw.gov.ph", role: "BARANGAY_SECRETARY", barangayId: "brgy-019", barangayName: "Makiling", isActive: true, createdAt: "2024-03-05" },
   { id: "user-009", name: "Prof. Arvin dela Cruz", email: "researcher2@linaw.gov.ph", role: "RESEARCHER", isActive: false, createdAt: "2024-04-01" },
   { id: "user-010", name: "Luz Villanueva", email: "captain.canlubang@linaw.gov.ph", role: "BARANGAY_CAPTAIN", barangayId: "brgy-008", barangayName: "Canlubang", isActive: true, createdAt: "2024-04-10" },
 ];
@@ -58,7 +59,7 @@ export function UserManagementPage() {
     total: EXTENDED_USERS.length,
     active: EXTENDED_USERS.filter((u) => u.isActive).length,
     admins: EXTENDED_USERS.filter((u) => u.role === "SYSTEM_ADMIN" || u.role === "CENRO_EVALUATOR").length,
-    barangayUsers: EXTENDED_USERS.filter((u) => u.role === "BARANGAY_ENCODER" || u.role === "BARANGAY_CAPTAIN").length,
+    barangayUsers: EXTENDED_USERS.filter((u) => ["BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN"].includes(u.role)).length,
   };
 
   return (
@@ -213,7 +214,7 @@ export function UserManagementPage() {
             </div>
             <div>
               <Label>Role</Label>
-              <Select defaultValue={editingUser?.role ?? "BARANGAY_ENCODER"}>
+              <Select defaultValue={editingUser?.role ?? "BARANGAY_SECRETARY"}>
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>

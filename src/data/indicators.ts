@@ -143,18 +143,18 @@ export const indicators: AuditIndicator[] = [
   {
     id: "C5",
     code: "C5",
-    name: "Health Center Representative",
+    name: "PTA President / Representative",
     description:
-      "Barangay health center representative included in and active in the SWM committee.",
+      "One (1) Parents and Teachers Association president or representative included in and active in the SWM committee.",
     category: "COMMITTEE",
     sortOrder: 16,
   },
   {
     id: "C6",
     code: "C6",
-    name: "Purok / Sitio Leader Representative",
+    name: "Religious Organization Representative",
     description:
-      "Purok or sitio leader included in the SWM committee for community-level coordination.",
+      "One (1) religious organization representative included in the SWM committee.",
     category: "COMMITTEE",
     sortOrder: 17,
   },
@@ -190,18 +190,18 @@ export const indicators: AuditIndicator[] = [
   {
     id: "WCF1.1",
     code: "WCF1.1",
-    name: "Biodegradable Collection Schedule",
+    name: "Recyclable and Reusable Waste Collection",
     description:
-      "Documented and practiced collection schedule specifically for biodegradable wastes.",
+      "Separate collection of recyclable and reusable wastes on a documented schedule (e.g., 'Libreng Hakot ng Basura' program).",
     category: "WASTE_COLLECTION_FEES",
     sortOrder: 21,
   },
   {
     id: "WCF1.2",
     code: "WCF1.2",
-    name: "Non-Biodegradable Collection Schedule",
+    name: "Compostable Waste Collection",
     description:
-      "Documented and practiced collection schedule specifically for non-biodegradable wastes.",
+      "Separate collection of compostable/biodegradable wastes (e.g., yard/garden wastes) on a documented schedule.",
     category: "WASTE_COLLECTION_FEES",
     sortOrder: 22,
   },
