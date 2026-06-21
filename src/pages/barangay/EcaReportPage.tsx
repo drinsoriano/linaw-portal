@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { useEca } from "../../context/EcaContext";
 import { useToast } from "../../context/ToastContext";
 import { barangays } from "../../data/barangays";
+import { buildSections } from "../../data/ecaReports";
 import { EcaReportPDF } from "../../components/shared/EcaReportPDF";
 import type { EcaReport, EcaStatus, SectionReviewNote, NoteReply } from "../../types";
 import { ECA_STATUS_COLORS, ECA_STATUS_LABELS } from "../../types";
@@ -42,16 +43,15 @@ export function EcaReportPage() {
   const isSecretary = hasRole("BARANGAY_SECRETARY", "SYSTEM_ADMIN");
   const isCouncilor = hasRole("BARANGAY_COUNCILOR");
   const isCaptain = hasRole("BARANGAY_CAPTAIN");
-  const { getByBarangay, submitForReview, endorseReport, certifyToCenro, returnReport, updateReport } = useEca();
+  const { activePeriod, getByBarangay, addReport, submitForReview, endorseReport, certifyToCenro, returnReport, updateReport } = useEca();
   const { toast } = useToast();
 
   const barangayId = user?.barangayId ?? "brgy-001";
   const barangayName = barangays.find((b) => b.id === barangayId)?.name ?? barangayId;
   const reports = getByBarangay(barangayId);
 
-  const currentYear = 2025;
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const [selectedQuarter, setSelectedQuarter] = useState<string>("3");
+  const [selectedYear, setSelectedYear] = useState(activePeriod.year.toString());
+  const [selectedQuarter, setSelectedQuarter] = useState<string>(activePeriod.quarter.toString());
   const [expandedSection, setExpandedSection] = useState<string | null>("sec-waste");
 
   const report: EcaReport | undefined = reports.find(
@@ -290,7 +290,7 @@ export function EcaReportPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[2023, 2024, 2025].map((y) => (
+                    {Array.from({ length: 7 }, (_, i) => 2020 + i).map((y) => (
                       <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
                     ))}
                   </SelectContent>
@@ -318,6 +318,17 @@ export function EcaReportPage() {
               <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-600 w-full justify-center">
                 No report yet
               </span>
+            )}
+            {parseInt(selectedYear) === activePeriod.year && parseInt(selectedQuarter) === activePeriod.quarter ? (
+              <p className="text-[10px] text-green-700 text-center font-medium">Active period</p>
+            ) : (
+              <button
+                type="button"
+                className="text-[10px] text-amber-600 text-center font-medium hover:underline"
+                onClick={() => { setSelectedYear(activePeriod.year.toString()); setSelectedQuarter(activePeriod.quarter.toString()); }}
+              >
+                ← Back to active (Q{activePeriod.quarter} {activePeriod.year})
+              </button>
             )}
           </CardContent>
         </Card>
@@ -375,25 +386,41 @@ export function EcaReportPage() {
         </Card>
       </div>
 
-      {/* Past quarters reference */}
+      {/* Quarter history — all reports for this barangay */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {reports.slice(0, 5).map((r) => (
-          <button
-            key={r.id}
-            onClick={() => { setSelectedQuarter(r.quarter.toString()); setSelectedYear(r.year.toString()); }}
-            className={cn(
-              "flex-shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold transition-all",
-              r.year.toString() === selectedYear && r.quarter.toString() === selectedQuarter
-                ? "bg-[#16a34a] text-white border-[#16a34a]"
-                : "bg-white text-slate-700 border-slate-200 hover:border-green-400"
-            )}
-          >
-            {QUARTER_LABELS[r.quarter]} {r.year}
-            <span className={cn("ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold", ECA_STATUS_COLORS[r.status])}>
-              {r.status}
-            </span>
-          </button>
-        ))}
+        {reports.map((r) => {
+          const compRate = r.summaryMetrics?.complianceRate
+            ?? (() => {
+              const s3 = r.sections.find((s) => s.id === "sec-segregation");
+              const f = s3?.fields.find((f) => f.id === "s3");
+              return f ? parseFloat(String(f.value)) : null;
+            })();
+          const isSelected = r.year.toString() === selectedYear && r.quarter.toString() === selectedQuarter;
+          return (
+            <button
+              key={r.id}
+              onClick={() => { setSelectedQuarter(r.quarter.toString()); setSelectedYear(r.year.toString()); }}
+              className={cn(
+                "flex-shrink-0 rounded-xl border px-3 py-2 text-left transition-all",
+                isSelected
+                  ? "bg-[#16a34a] text-white border-[#16a34a]"
+                  : "bg-white text-slate-700 border-slate-200 hover:border-green-400"
+              )}
+            >
+              <p className="text-xs font-semibold">{QUARTER_LABELS[r.quarter]} {r.year}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className={cn("inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold", isSelected ? "bg-white/20 text-white" : ECA_STATUS_COLORS[r.status])}>
+                  {r.status}
+                </span>
+                {compRate != null && (
+                  <span className={cn("text-[9px] font-semibold", isSelected ? "text-white/80" : compRate >= 70 ? "text-green-700" : "text-red-600")}>
+                    {compRate}%
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Report sections */}
@@ -994,11 +1021,49 @@ export function EcaReportPage() {
         </div>
       ) : (
         <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-slate-400 text-sm">No ECA report found for Q{selectedQuarter} {selectedYear}.</p>
-            <Button className="mt-4" onClick={() => updateReport("new", {})}>
-              Start New Report
-            </Button>
+          <CardContent className="py-12 text-center space-y-3">
+            {parseInt(selectedYear) === activePeriod.year && parseInt(selectedQuarter) === activePeriod.quarter ? (
+              <>
+                <p className="text-slate-600 text-sm font-medium">No ECA report yet for Q{selectedQuarter} {selectedYear}.</p>
+                <p className="text-slate-400 text-xs">This is the active reporting period — you can start a new report now.</p>
+                {isSecretary && (
+                  <Button
+                    className="mt-2"
+                    onClick={() => {
+                      const today = new Date().toISOString().split("T")[0];
+                      const q = parseInt(selectedQuarter) as 1 | 2 | 3 | 4;
+                      const y = parseInt(selectedYear);
+                      addReport({
+                        id: `eca-${barangayId}-${y}-q${q}-${Date.now()}`,
+                        barangayId,
+                        quarter: q,
+                        year: y,
+                        status: "DRAFT",
+                        revisionRound: 0,
+                        sections: buildSections(),
+                        attachments: [],
+                        createdAt: today,
+                        updatedAt: today,
+                      });
+                      toast({ title: "New ECA Report Created", description: `Q${q} ${y} report started as draft.`, variant: "success" });
+                    }}
+                  >
+                    Start Q{selectedQuarter} {selectedYear} Report
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-slate-400 text-sm">No ECA report on file for Q{selectedQuarter} {selectedYear}.</p>
+                <button
+                  type="button"
+                  className="text-xs text-green-700 hover:underline font-medium"
+                  onClick={() => { setSelectedYear(activePeriod.year.toString()); setSelectedQuarter(activePeriod.quarter.toString()); }}
+                >
+                  ← Go to active period (Q{activePeriod.quarter} {activePeriod.year})
+                </button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}

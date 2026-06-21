@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, CheckCircle2, Clock, AlertTriangle, FileText, RotateCcw, Eye, Download } from "lucide-react";
+import { Search, CheckCircle2, Clock, AlertTriangle, FileText, RotateCcw, Eye, Download, CalendarDays } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EcaReportPDF } from "../../components/shared/EcaReportPDF";
@@ -17,7 +17,8 @@ import type { EcaReport, EcaStatus } from "../../types";
 import { ECA_STATUS_COLORS, ECA_STATUS_LABELS } from "../../types";
 import { cn } from "../../lib/utils";
 
-const QUARTER_LABELS = { 1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4" };
+const QUARTER_LABELS: Record<number, string> = { 1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4" };
+const QUARTER_NAMES: Record<number, string> = { 1: "Q1 — Jan to Mar", 2: "Q2 — Apr to Jun", 3: "Q3 — Jul to Sep", 4: "Q4 — Oct to Dec" };
 
 const STATUS_ICONS: Record<EcaStatus, typeof CheckCircle2> = {
   ACCEPTED: CheckCircle2,
@@ -31,18 +32,27 @@ const STATUS_ICONS: Record<EcaStatus, typeof CheckCircle2> = {
 
 type EnrichedReport = EcaReport & { barangayName: string };
 
+const YEARS = Array.from({ length: 7 }, (_, i) => 2020 + i); // 2020–2026
+
 export function EcaTrackerPage() {
-  const { reports, setStatus } = useEca();
+  const { getByPeriod, setActivePeriod, activePeriod, setStatus } = useEca();
   const { toast } = useToast();
+
+  // Local view state — browsing a period without immediately changing what barangays see
+  const [viewYear, setViewYear] = useState<number>(activePeriod.year);
+  const [viewQuarter, setViewQuarter] = useState<1 | 2 | 3 | 4>(activePeriod.quarter);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [quarterFilter, setQuarterFilter] = useState<string>("All");
   const [viewReport, setViewReport] = useState<EnrichedReport | null>(null);
   const [actionReport, setActionReport] = useState<EnrichedReport | null>(null);
   const [actionType, setActionType] = useState<"accept" | "revise" | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
 
-  const enriched = reports.map((r) => ({
+  const isViewingActive = viewYear === activePeriod.year && viewQuarter === activePeriod.quarter;
+
+  const periodReports = getByPeriod(viewYear, viewQuarter);
+  const enriched: EnrichedReport[] = periodReports.map((r) => ({
     ...r,
     barangayName: barangays.find((b) => b.id === r.barangayId)?.name ?? r.barangayId,
   }));
@@ -50,16 +60,25 @@ export function EcaTrackerPage() {
   const filtered = enriched.filter((r) => {
     const matchSearch = r.barangayName.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "All" || r.status === statusFilter;
-    const matchQuarter = quarterFilter === "All" || r.quarter.toString() === quarterFilter;
-    return matchSearch && matchStatus && matchQuarter;
+    return matchSearch && matchStatus;
   });
 
+  const noReportCount = Math.max(0, 54 - periodReports.length);
   const summary = {
-    accepted: reports.filter((r) => r.status === "ACCEPTED").length,
-    pending: reports.filter((r) => r.status === "PENDING").length,
-    atBarangay: reports.filter((r) => r.status === "SUBMITTED" || r.status === "ENDORSED").length,
-    overdue: reports.filter((r) => r.status === "OVERDUE").length,
-    forRevision: reports.filter((r) => r.status === "FOR_REVISION").length,
+    accepted: periodReports.filter((r) => r.status === "ACCEPTED").length,
+    pending: periodReports.filter((r) => r.status === "PENDING").length,
+    atBarangay: periodReports.filter((r) => r.status === "SUBMITTED" || r.status === "ENDORSED").length,
+    forRevision: periodReports.filter((r) => r.status === "FOR_REVISION" || r.status === "OVERDUE").length,
+    noReport: noReportCount,
+  };
+
+  const handleSetActive = () => {
+    setActivePeriod(viewYear, viewQuarter);
+    toast({
+      title: "Active Period Updated",
+      description: `${QUARTER_NAMES[viewQuarter]} ${viewYear} is now the active ECA period. Barangay secretaries will see this quarter.`,
+      variant: "success",
+    });
   };
 
   const handleAction = () => {
@@ -84,14 +103,54 @@ export function EcaTrackerPage() {
         subtitle="Monitor environmental compliance activity reports submitted by all barangays"
       />
 
+      {/* Period selector */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <CalendarDays className="h-4 w-4 text-slate-400 shrink-0" />
+        <span className="text-sm font-medium text-slate-700">Viewing Period:</span>
+        <Select value={viewYear.toString()} onValueChange={(v) => setViewYear(parseInt(v))}>
+          <SelectTrigger className="w-28 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {YEARS.map((y) => (
+              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={viewQuarter.toString()} onValueChange={(v) => setViewQuarter(parseInt(v) as 1 | 2 | 3 | 4)}>
+          <SelectTrigger className="w-44 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[1, 2, 3, 4].map((q) => (
+              <SelectItem key={q} value={q.toString()}>{QUARTER_NAMES[q]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {isViewingActive ? (
+          <span className="ml-2 rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">
+            Active period — barangays are on this quarter
+          </span>
+        ) : (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[11px] text-amber-700">
+              Read-only. Active: <strong>{QUARTER_LABELS[activePeriod.quarter]} {activePeriod.year}</strong>
+            </span>
+            <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700" onClick={handleSetActive}>
+              Set as Active Period
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: "Accepted", value: summary.accepted, color: "text-green-700", bg: "bg-green-50 border-green-200" },
           { label: "Pending CENRO", value: summary.pending, color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
           { label: "In Barangay Review", value: summary.atBarangay, color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200" },
-          { label: "For Revision", value: summary.forRevision, color: "text-amber-700", bg: "bg-amber-50 border-amber-200" },
-          { label: "Overdue", value: summary.overdue, color: "text-red-700", bg: "bg-red-50 border-red-200" },
+          { label: "For Revision / Overdue", value: summary.forRevision, color: "text-amber-700", bg: "bg-amber-50 border-amber-200" },
+          { label: "No Report Yet", value: summary.noReport, color: "text-slate-500", bg: "bg-slate-50 border-slate-200" },
         ].map((s) => (
           <div key={s.label} className={cn("rounded-xl border p-4", s.bg)}>
             <p className={cn("text-3xl font-bold", s.color)}>{s.value}</p>
@@ -111,17 +170,6 @@ export function EcaTrackerPage() {
             className="pl-9 w-60"
           />
         </div>
-        <Select value={quarterFilter} onValueChange={setQuarterFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Quarter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All Quarters</SelectItem>
-            {[1, 2, 3, 4].map((q) => (
-              <SelectItem key={q} value={q.toString()}>Q{q}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Status" />
@@ -133,7 +181,7 @@ export function EcaTrackerPage() {
             ))}
           </SelectContent>
         </Select>
-        <p className="self-center text-xs text-slate-400 ml-auto">{filtered.length} reports</p>
+        <p className="self-center text-xs text-slate-400 ml-auto">{filtered.length} of 54 barangays</p>
       </div>
 
       {/* Table */}
@@ -143,24 +191,24 @@ export function EcaTrackerPage() {
             <thead className="border-b border-slate-200">
               <tr>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500">Barangay</th>
-                <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500">Quarter / Year</th>
                 <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden md:table-cell">Submitted</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden lg:table-cell">Certified By</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden md:table-cell">Certified</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden lg:table-cell">Compliance %</th>
                 <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filtered.map((r) => {
                 const StatusIcon = STATUS_ICONS[r.status];
+                const compRate = r.summaryMetrics?.complianceRate
+                  ?? (() => {
+                    const s3 = r.sections.find(s => s.id === "sec-segregation");
+                    const f = s3?.fields.find(f => f.id === "s3");
+                    return f ? parseFloat(String(f.value)) : null;
+                  })();
                 return (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-medium text-slate-900">{r.barangayName}</td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                        {QUARTER_LABELS[r.quarter]} {r.year}
-                      </span>
-                    </td>
                     <td className="py-3 px-4 text-center">
                       <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", ECA_STATUS_COLORS[r.status])}>
                         <StatusIcon className="h-3 w-3" />
@@ -168,10 +216,14 @@ export function EcaTrackerPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-xs text-slate-500 hidden md:table-cell">
-                      {r.certifiedAt ?? r.submittedAt ?? <span className="text-slate-300">—</span>}
+                      {r.certifiedAt ?? <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="py-3 px-4 text-xs text-slate-600 hidden lg:table-cell">
-                      {r.certifiedBy ?? <span className="text-slate-300">—</span>}
+                    <td className="py-3 px-4 text-xs hidden lg:table-cell">
+                      {compRate != null ? (
+                        <span className={cn("font-semibold", compRate >= 70 ? "text-green-700" : "text-red-600")}>
+                          {compRate}%
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -209,7 +261,7 @@ export function EcaTrackerPage() {
                           <span className="text-xs text-indigo-500 font-medium">In committee review</span>
                         )}
                         {r.status === "ENDORSED" && (
-                          <span className="text-xs text-indigo-500 font-medium">Awaiting captain certification</span>
+                          <span className="text-xs text-indigo-500 font-medium">Awaiting captain</span>
                         )}
                         {r.status === "ACCEPTED" && (
                           <span className="text-xs text-green-700 font-medium">✓ Accepted</span>
@@ -231,7 +283,9 @@ export function EcaTrackerPage() {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div className="py-12 text-center text-sm text-slate-400">No ECA reports match the current filters.</div>
+            <div className="py-12 text-center text-sm text-slate-400">
+              No ECA reports found for {QUARTER_LABELS[viewQuarter]} {viewYear}.
+            </div>
           )}
         </div>
       </Card>
@@ -270,6 +324,22 @@ export function EcaTrackerPage() {
                 </PDFDownloadLink>
               </div>
 
+              {/* Summary metrics (for historical records) */}
+              {viewReport.summaryMetrics && viewReport.sections.length === 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-slate-200 p-3 text-center">
+                    <p className={cn("text-2xl font-bold", viewReport.summaryMetrics.complianceRate >= 70 ? "text-green-700" : "text-red-600")}>
+                      {viewReport.summaryMetrics.complianceRate}%
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">Household Compliance Rate</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 p-3 text-center">
+                    <p className="text-2xl font-bold text-blue-700">{viewReport.summaryMetrics.diversionRate}%</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Waste Diversion Rate</p>
+                  </div>
+                </div>
+              )}
+
               {/* Approval chain */}
               <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
                 <div className="px-4 py-2 bg-slate-50 rounded-t-lg">
@@ -294,28 +364,30 @@ export function EcaTrackerPage() {
               </div>
 
               {/* Sections data */}
-              <div className="space-y-4">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Report Content</p>
-                {viewReport.sections.map((section) => {
-                  const filledFields = section.fields.filter((f) => f.value !== "" && f.value !== null && f.value !== undefined);
-                  if (filledFields.length === 0) return null;
-                  return (
-                    <div key={section.id} className="rounded-lg border border-slate-200 overflow-hidden">
-                      <div className="bg-[#0f2d1a] px-3 py-2">
-                        <p className="text-xs font-semibold text-green-200">{section.label}</p>
+              {viewReport.sections.length > 0 && (
+                <div className="space-y-4">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Report Content</p>
+                  {viewReport.sections.map((section) => {
+                    const filledFields = section.fields.filter((f) => f.value !== "" && f.value !== null && f.value !== undefined);
+                    if (filledFields.length === 0) return null;
+                    return (
+                      <div key={section.id} className="rounded-lg border border-slate-200 overflow-hidden">
+                        <div className="bg-[#0f2d1a] px-3 py-2">
+                          <p className="text-xs font-semibold text-green-200">{section.label}</p>
+                        </div>
+                        <div className="divide-y divide-slate-50">
+                          {filledFields.map((field) => (
+                            <div key={field.id} className="px-3 py-2 text-sm">
+                              <p className="text-xs text-slate-500 mb-0.5">{field.label}</p>
+                              <p className="text-slate-800 font-medium break-words">{String(field.value)}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="divide-y divide-slate-50">
-                        {filledFields.map((field) => (
-                          <div key={field.id} className="px-3 py-2 text-sm">
-                            <p className="text-xs text-slate-500 mb-0.5">{field.label}</p>
-                            <p className="text-slate-800 font-medium break-words">{String(field.value)}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* CENRO feedback if any */}
               {viewReport.cenroFeedback && (
@@ -327,7 +399,6 @@ export function EcaTrackerPage() {
             </div>
           )}
 
-          {/* Footer actions */}
           <DialogFooter className="gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setViewReport(null)}>Close</Button>
             {viewReport?.status === "PENDING" && (

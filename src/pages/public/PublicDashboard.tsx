@@ -126,7 +126,7 @@ export function PublicDashboard() {
   const [expandedEcaId, setExpandedEcaId] = useState<string | null>(null);
   const [expandedEvidenceId, setExpandedEvidenceId] = useState<string | null>(null);
   const { submissions, activeCycle, cycles } = useSubmissions();
-  const { reports } = useEca();
+  const { reports, getByPeriod } = useEca();
   const { getContactByBarangay, cenroContact } = useContact();
   const { activities: allIECActivities } = useIEC();
 
@@ -163,34 +163,67 @@ export function PublicDashboard() {
   const mostlyCompliant = scored.filter((s) => (s.overallScore ?? 0) >= 3.41 && (s.overallScore ?? 0) < 4.21).length;
   const partiallyCompliant = scored.filter((s) => (s.overallScore ?? 0) < 3.41).length;
 
-  // ECA — latest report per barangay, newest quarter first
-  const latestEcaPerBarangay = barangays.map((brgy) => {
-    const brgyReports = reports
-      .filter((r) => r.barangayId === brgy.id)
-      .sort((a, b) => a.year !== b.year ? b.year - a.year : b.quarter - a.quarter);
-    return { barangay: brgy, latest: brgyReports[0] ?? null };
-  }).filter((item) => item.latest !== null);
+  // ECA — period-based (year + quarter) with year/quarter selectors
+  const ecaYearsWithData = [
+    ...new Set(reports.filter((r) => r.status === "ACCEPTED").map((r) => r.year)),
+  ].sort((a, b) => b - a);
 
-  const filteredEca = latestEcaPerBarangay.filter(({ barangay }) =>
+  const [selectedEcaYear, setSelectedEcaYear] = useState<number>(
+    ecaYearsWithData[0] ?? new Date().getFullYear()
+  );
+
+  const ecaQuartersInYear = [
+    ...new Set(
+      reports
+        .filter((r) => r.status === "ACCEPTED" && r.year === selectedEcaYear)
+        .map((r) => r.quarter)
+    ),
+  ].sort() as (1 | 2 | 3 | 4)[];
+
+  const [selectedEcaQuarter, setSelectedEcaQuarter] = useState<1 | 2 | 3 | 4>(
+    ecaQuartersInYear[ecaQuartersInYear.length - 1] ?? 1
+  );
+
+  const handleEcaYearChange = (year: number) => {
+    setSelectedEcaYear(year);
+    const qs = [
+      ...new Set(
+        reports
+          .filter((r) => r.status === "ACCEPTED" && r.year === year)
+          .map((r) => r.quarter)
+      ),
+    ].sort() as (1 | 2 | 3 | 4)[];
+    setSelectedEcaQuarter(qs[qs.length - 1] ?? 1);
+  };
+
+  const periodEcaReports = getByPeriod(selectedEcaYear, selectedEcaQuarter);
+
+  // Join with all 54 barangays — null means no submission for this period
+  const ecaTableRows = barangays.map((brgy) => ({
+    barangay: brgy,
+    report: periodEcaReports.find((r) => r.barangayId === brgy.id) ?? null,
+  }));
+
+  const filteredEca = ecaTableRows.filter(({ barangay }) =>
     barangay.name.toLowerCase().includes(ecaSearch.toLowerCase())
   );
 
-  const ecaAccepted = latestEcaPerBarangay.filter((x) => x.latest?.status === "ACCEPTED").length;
-  const ecaPending = latestEcaPerBarangay.filter((x) => x.latest?.status === "PENDING").length;
+  const ecaAccepted = periodEcaReports.filter((r) => r.status === "ACCEPTED").length;
+  const ecaPending = periodEcaReports.filter((r) => r.status === "PENDING").length;
 
-  // Aggregate ECA metrics extracted from section fields
-  const ecaReportsList = latestEcaPerBarangay.map((x) => x.latest!);
-
-  const segRates = ecaReportsList
-    .map((r) => parseFloat(getField(r, "s3")))
+  const segRates = periodEcaReports
+    .map((r) => {
+      const fromField = parseFloat(getField(r, "s3"));
+      return !isNaN(fromField) && fromField > 0 ? fromField : (r.summaryMetrics?.complianceRate ?? NaN);
+    })
     .filter((v) => !isNaN(v) && v > 0);
   const avgSegRate = segRates.length > 0
     ? (segRates.reduce((a, b) => a + b, 0) / segRates.length).toFixed(1)
     : null;
 
-  const mrfCount = ecaReportsList.filter((r) => getField(r, "m1") === "Yes").length;
+  const mrfCount = periodEcaReports.filter((r) => getField(r, "m1") === "Yes").length;
 
-  const totalDivertedKg = ecaReportsList
+  const totalDivertedKg = periodEcaReports
     .map((r) => parseFloat(getField(r, "wg8")) || 0)
     .reduce((a, b) => a + b, 0);
 
@@ -536,6 +569,51 @@ export function PublicDashboard() {
 
           {/* ── ECA Tab ── */}
           <TabsContent value="eca" className="mt-6 space-y-6">
+            {/* Year selector */}
+            {ecaYearsWithData.length > 1 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-slate-500 font-medium">Report Year:</span>
+                {ecaYearsWithData.map((y) => (
+                  <button
+                    key={y}
+                    onClick={() => handleEcaYearChange(y)}
+                    className={cn(
+                      "text-xs rounded-full px-3 py-1 font-semibold border transition-colors",
+                      selectedEcaYear === y
+                        ? "bg-[#16a34a] text-white border-[#16a34a]"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-green-400"
+                    )}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Quarter selector */}
+            {ecaQuartersInYear.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-slate-500 font-medium">Quarter:</span>
+                {ecaQuartersInYear.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setSelectedEcaQuarter(q)}
+                    className={cn(
+                      "text-xs rounded-full px-3 py-1 font-semibold border transition-colors",
+                      selectedEcaQuarter === q
+                        ? "bg-slate-700 text-white border-slate-700"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                    )}
+                  >
+                    {QUARTER_LABELS[q]}
+                  </button>
+                ))}
+                <span className="text-xs text-slate-400 ml-1">
+                  · {periodEcaReports.length} of 54 barangays reported
+                </span>
+              </div>
+            )}
+
             {/* ECA KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
@@ -581,7 +659,7 @@ export function PublicDashboard() {
                   <div>
                     <CardTitle className="text-base">ECA Quarterly Report Status</CardTitle>
                     <CardDescription>
-                      Latest ECA submission per barangay · Click a row to see detailed metrics · Manila Bayanihan Form 2.2
+                      {QUARTER_LABELS[selectedEcaQuarter]} {selectedEcaYear} · Click a row to see detailed metrics · Manila Bayanihan Form 2.2
                     </CardDescription>
                   </div>
                   <div className="relative">
@@ -601,7 +679,6 @@ export function PublicDashboard() {
                     <tr>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500">Barangay</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden md:table-cell">District</th>
-                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500">Period</th>
                       <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500">Status</th>
                       <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 hidden sm:table-cell">Seg. Rate</th>
                       <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 hidden sm:table-cell">MRF</th>
@@ -609,25 +686,47 @@ export function PublicDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredEca.map(({ barangay, latest }) => {
-                      if (!latest) return null;
+                    {filteredEca.map(({ barangay, report }) => {
                       const isExpanded = expandedEcaId === barangay.id;
 
-                      const segRate      = getField(latest, "s3");  // "78.0%" or ""
-                      const segCompliant = getField(latest, "s4");  // "Yes" / "No" / ""
-                      const hasMrf       = getField(latest, "m1") === "Yes";
-                      const mrfType      = getField(latest, "m2");
-                      const mrfFull      = getField(latest, "m3") === "Yes";
-                      const mrfScore     = getField(latest, "m4");
-                      const divRate      = getField(latest, "wg9"); // "15.2%" or ""
-                      const totalDiv     = getField(latest, "wg8"); // "68000" or ""
-                      const biodiv       = getField(latest, "wg5");
-                      const recdiv       = getField(latest, "wg6");
-                      const hasOwnOrd    = getField(latest, "or1") === "Yes";
-                      const hasCityOrd   = getField(latest, "or2") === "Yes";
-                      const apprehends   = getField(latest, "or3") === "Yes";
-                      const cleanupDone  = getField(latest, "wg3") === "Yes";
-                      const cleanupSacks = getField(latest, "wg4");
+                      if (!report) {
+                        return (
+                          <tr key={barangay.id} className="border-b border-slate-50 opacity-50">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
+                                <span className="text-slate-500">{barangay.name}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-xs text-slate-400 hidden md:table-cell">{barangay.district}</td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="text-xs text-slate-400 italic">No report</span>
+                            </td>
+                            <td className="py-3 px-4 text-center hidden sm:table-cell"><span className="text-slate-300 text-xs">—</span></td>
+                            <td className="py-3 px-4 text-center hidden sm:table-cell"><span className="text-slate-300 text-xs">—</span></td>
+                            <td className="py-3 px-4 text-center hidden lg:table-cell"><span className="text-slate-300 text-xs">—</span></td>
+                          </tr>
+                        );
+                      }
+
+                      // Derive metrics — fall back to summaryMetrics for historical records (sections: [])
+                      const compRate  = report.summaryMetrics?.complianceRate;
+                      const divRateNum = report.summaryMetrics?.diversionRate;
+                      const segRate      = getField(report, "s3") || (compRate != null ? `${compRate}%` : "");
+                      const segCompliant = getField(report, "s4") || (compRate != null ? (compRate >= 70 ? "Yes" : "No") : "");
+                      const hasMrf       = getField(report, "m1") === "Yes";
+                      const mrfType      = getField(report, "m2");
+                      const mrfFull      = getField(report, "m3") === "Yes";
+                      const mrfScore     = getField(report, "m4");
+                      const divRate      = getField(report, "wg9") || (divRateNum != null ? `${divRateNum}%` : "");
+                      const totalDiv     = getField(report, "wg8");
+                      const biodiv       = getField(report, "wg5");
+                      const recdiv       = getField(report, "wg6");
+                      const hasOwnOrd    = getField(report, "or1") === "Yes";
+                      const hasCityOrd   = getField(report, "or2") === "Yes";
+                      const apprehends   = getField(report, "or3") === "Yes";
+                      const cleanupDone  = getField(report, "wg3") === "Yes";
+                      const cleanupSacks = getField(report, "wg4");
 
                       return (
                         <Fragment key={barangay.id}>
@@ -644,12 +743,9 @@ export function PublicDashboard() {
                               </div>
                             </td>
                             <td className="py-3 px-4 text-xs text-slate-500 hidden md:table-cell">{barangay.district}</td>
-                            <td className="py-3 px-4 text-center text-xs text-slate-700">
-                              {QUARTER_LABELS[latest.quarter]} {latest.year}
-                            </td>
                             <td className="py-3 px-4 text-center">
-                              <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", ECA_STATUS_COLORS[latest.status])}>
-                                {ECA_STATUS_LABELS[latest.status]}
+                              <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", ECA_STATUS_COLORS[report.status])}>
+                                {ECA_STATUS_LABELS[report.status]}
                               </span>
                             </td>
                             <td className="py-3 px-4 text-center hidden sm:table-cell">
@@ -672,7 +768,7 @@ export function PublicDashboard() {
                           {/* Expandable detail row */}
                           {isExpanded && (
                             <tr className="bg-slate-50">
-                              <td colSpan={7} className="px-6 py-4 border-b border-slate-200">
+                              <td colSpan={6} className="px-6 py-4 border-b border-slate-200">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
 
                                   {/* Segregation */}
@@ -716,24 +812,28 @@ export function PublicDashboard() {
                                   {/* Waste Diversion */}
                                   <div className="bg-white rounded-lg border border-slate-200 p-3">
                                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Waste Diversion</p>
-                                    {totalDiv ? (
+                                    {totalDiv || divRateNum != null ? (
                                       <>
-                                        <p className="text-xl font-bold text-slate-900">
-                                          {parseFloat(totalDiv).toLocaleString()} kg
-                                        </p>
-                                        <p className="text-xs text-slate-500 mt-0.5">Total diverted this quarter</p>
-                                        <p className="text-[10px] text-slate-400 mt-1">
-                                          Biodeg: {parseFloat(biodiv || "0").toLocaleString()} kg
-                                          {" · "}
-                                          Recyclable: {parseFloat(recdiv || "0").toLocaleString()} kg
-                                        </p>
+                                        {totalDiv && (
+                                          <>
+                                            <p className="text-xl font-bold text-slate-900">
+                                              {parseFloat(totalDiv).toLocaleString()} kg
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">Total diverted this quarter</p>
+                                            <p className="text-[10px] text-slate-400 mt-1">
+                                              Biodeg: {parseFloat(biodiv || "0").toLocaleString()} kg
+                                              {" · "}
+                                              Recyclable: {parseFloat(recdiv || "0").toLocaleString()} kg
+                                            </p>
+                                            {cleanupDone && (
+                                              <p className="text-[10px] text-green-700 mt-1">
+                                                ✓ Cleanup conducted · {cleanupSacks} sacks collected
+                                              </p>
+                                            )}
+                                          </>
+                                        )}
                                         {divRate && (
                                           <p className="text-xs font-semibold text-blue-700 mt-1">Diversion rate: {divRate}</p>
-                                        )}
-                                        {cleanupDone && (
-                                          <p className="text-[10px] text-green-700 mt-1">
-                                            ✓ Cleanup conducted · {cleanupSacks} sacks collected
-                                          </p>
                                         )}
                                       </>
                                     ) : (
@@ -744,31 +844,35 @@ export function PublicDashboard() {
                                   {/* Ordinances & CENRO Feedback */}
                                   <div className="bg-white rounded-lg border border-slate-200 p-3">
                                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Ordinances & Enforcement</p>
-                                    <div className="space-y-1">
-                                      <p className="text-[10px] text-slate-600">
-                                        <span className={hasOwnOrd ? "text-green-600 font-bold" : "text-slate-300"}>
-                                          {hasOwnOrd ? "✓" : "✗"}
-                                        </span>
-                                        {" "}Own no-littering ordinance
-                                      </p>
-                                      <p className="text-[10px] text-slate-600">
-                                        <span className={hasCityOrd ? "text-green-600 font-bold" : "text-slate-300"}>
-                                          {hasCityOrd ? "✓" : "✗"}
-                                        </span>
-                                        {" "}City ordinance implemented
-                                      </p>
-                                      <p className="text-[10px] text-slate-600">
-                                        <span className={apprehends ? "text-green-600 font-bold" : "text-slate-300"}>
-                                          {apprehends ? "✓" : "✗"}
-                                        </span>
-                                        {" "}Apprehends RA 9003 violators
-                                      </p>
-                                    </div>
-                                    {latest.cenroFeedback && latest.status === "ACCEPTED" && (
+                                    {(hasOwnOrd || hasCityOrd || apprehends) ? (
+                                      <div className="space-y-1">
+                                        <p className="text-[10px] text-slate-600">
+                                          <span className={hasOwnOrd ? "text-green-600 font-bold" : "text-slate-300"}>
+                                            {hasOwnOrd ? "✓" : "✗"}
+                                          </span>
+                                          {" "}Own no-littering ordinance
+                                        </p>
+                                        <p className="text-[10px] text-slate-600">
+                                          <span className={hasCityOrd ? "text-green-600 font-bold" : "text-slate-300"}>
+                                            {hasCityOrd ? "✓" : "✗"}
+                                          </span>
+                                          {" "}City ordinance implemented
+                                        </p>
+                                        <p className="text-[10px] text-slate-600">
+                                          <span className={apprehends ? "text-green-600 font-bold" : "text-slate-300"}>
+                                            {apprehends ? "✓" : "✗"}
+                                          </span>
+                                          {" "}Apprehends RA 9003 violators
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-slate-400">No ordinance data reported</p>
+                                    )}
+                                    {report.cenroFeedback && report.status === "ACCEPTED" && (
                                       <div className="mt-3 pt-2 border-t border-slate-100">
                                         <p className="text-[10px] font-semibold text-slate-500 mb-1">CENRO Evaluation</p>
                                         <p className="text-[10px] text-slate-600 leading-relaxed italic">
-                                          "{latest.cenroFeedback}"
+                                          "{report.cenroFeedback}"
                                         </p>
                                       </div>
                                     )}

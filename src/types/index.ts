@@ -367,6 +367,10 @@ export interface EcaReport {
   revisionRound: number;   // starts at 0; increments on each Secretary resubmission
   sections: EcaSection[];
   attachments: EcaAttachment[];
+  summaryMetrics?: {
+    complianceRate: number;  // household compliance %
+    diversionRate: number;   // waste diversion %
+  };
   preparedBy?: string;     // Secretary who encoded and submitted
   preparedAt?: string;
   submittedAt?: string;

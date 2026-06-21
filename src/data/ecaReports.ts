@@ -1,4 +1,5 @@
 import type { EcaReport } from "../types";
+import { barangays } from "./barangays";
 
 const COMMITTEE_MEMBERS = [
   "Kagawad",
@@ -57,7 +58,7 @@ interface SectionOpts {
   apprehendViolators?: boolean;
 }
 
-function buildSections(opts: SectionOpts = {}) {
+export function buildSections(opts: SectionOpts = {}) {
   const totalDiverted = (opts.biodiverted ?? 0) + (opts.recyclablesDiverted ?? 0) + (opts.othersDiverted ?? 0);
   const estWasteGen = opts.population ? Math.round(((opts.perCapita ?? 0.45) * opts.population * 365) / 4) : 0;
   const diversionRate = estWasteGen > 0 && totalDiverted > 0
@@ -444,6 +445,54 @@ export const mockEcaReports: EcaReport[] = [
     updatedAt: "2025-07-05",
   },
 ];
+
+// ─── Historical ECA Data (2020–2024) ─────────────────────────────────────────
+
+function seededRand(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+const QUARTER_END: Record<number, { endMonth: string; nextMonth: string; nextMonthYear: (y: number) => number }> = {
+  1: { endMonth: "03", nextMonth: "04", nextMonthYear: (y) => y },
+  2: { endMonth: "06", nextMonth: "07", nextMonthYear: (y) => y },
+  3: { endMonth: "09", nextMonth: "10", nextMonthYear: (y) => y },
+  4: { endMonth: "12", nextMonth: "01", nextMonthYear: (y) => y + 1 },
+};
+
+function makeHistoricalEcaReports(years: number[]): EcaReport[] {
+  const results: EcaReport[] = [];
+  for (const year of years) {
+    for (const quarter of [1, 2, 3, 4] as const) {
+      const yearFactor = 0.75 + (year - 2020) * 0.04;
+      const q = QUARTER_END[quarter];
+      for (const [idx, brgy] of barangays.entries()) {
+        const seed = idx * 1000 + year * 10 + quarter;
+        const complianceRate = Math.min(95, Math.max(30, Math.round((55 + seededRand(seed) * 40) * yearFactor)));
+        const diversionRate = Math.min(80, Math.max(10, Math.round((25 + seededRand(seed + 7) * 35) * yearFactor)));
+        const acceptedDay = String(1 + (idx % 14)).padStart(2, "0");
+        const nextY = q.nextMonthYear(year);
+        results.push({
+          id: `eca-${brgy.id}-${year}-q${quarter}`,
+          barangayId: brgy.id,
+          quarter,
+          year,
+          status: "ACCEPTED",
+          revisionRound: 1,
+          sections: [],
+          attachments: [],
+          summaryMetrics: { complianceRate, diversionRate },
+          reviewedAt: `${nextY}-${q.nextMonth}-${acceptedDay}`,
+          createdAt: `${year}-${q.endMonth}-01`,
+          updatedAt: `${nextY}-${q.nextMonth}-${acceptedDay}`,
+        });
+      }
+    }
+  }
+  return results;
+}
+
+export const ecaHistoricalReports = makeHistoricalEcaReports([2020, 2021, 2022, 2023, 2024]);
 
 export function getEcaByBarangay(barangayId: string): EcaReport[] {
   return mockEcaReports.filter((r) => r.barangayId === barangayId);
