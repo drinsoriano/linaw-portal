@@ -63,6 +63,81 @@ const STATUS_DISTRIBUTION: SubmissionStatus[] = [
   "DRAFT", "DRAFT", "DRAFT", "DRAFT",
 ];
 
+// ─── Helper: generate historical VALIDATED submissions for any closed cycle ───
+
+function makeHistoricalSubs(cycleId: string, year: number, seedOffset: number): AuditSubmission[] {
+  // yearFactor scales average scores down for earlier years (2020 ≈ 0.80, 2023 ≈ 0.95)
+  const yearFactor = 0.80 + (year - 2020) * 0.05;
+  const categoryKeys = ["SWM_PROGRAMS", "COMMITTEE", "WASTE_COLLECTION_FEES", "ENV_COMMUNITY_IMPACT"] as const;
+
+  return barangays.map((brgy, idx) => {
+    const responses: IndicatorResponse[] = indicators.map((ind) => {
+      const rawScore = generateScore(ind.id, idx + seedOffset) * yearFactor + (1 - yearFactor);
+      return {
+        indicatorId: ind.id,
+        score: Math.max(1, Math.min(5, Math.round(rawScore))),
+        notes: "",
+        evidenceCount: 1,
+      };
+    });
+
+    const categoryScores: Record<string, number> = {};
+    for (const cat of categoryKeys) {
+      const catIndicators = indicators.filter((i) => i.category === cat);
+      const catResponses = responses.filter((r) =>
+        catIndicators.some((i) => i.id === r.indicatorId) && r.score !== null
+      );
+      if (catResponses.length > 0) {
+        const avg = catResponses.reduce((acc, r) => acc + (r.score ?? 0), 0) / catResponses.length;
+        categoryScores[cat] = parseFloat(avg.toFixed(2));
+      }
+    }
+
+    const catAvgs = Object.values(categoryScores);
+    const overall = catAvgs.length > 0
+      ? parseFloat((catAvgs.reduce((a, b) => a + b, 0) / catAvgs.length).toFixed(2))
+      : undefined;
+
+    return {
+      id: `sub-${brgy.id}-${year}`,
+      barangayId: brgy.id,
+      cycleId,
+      status: "VALIDATED" as SubmissionStatus,
+      responses,
+      overallScore: overall,
+      categoryScores: categoryScores as Record<typeof categoryKeys[number], number>,
+      captainRemarks: "Self-assessment certified by Punong Barangay.",
+      validatedAt: `${year}-06-${String(15 + (idx % 14)).padStart(2, "0")}`,
+      createdAt: `${year}-04-01`,
+      updatedAt: `${year}-06-30`,
+    };
+  });
+}
+
+// ─── 2020–2023 Historical Cycles ─────────────────────────────────────────────
+
+export const auditCycle2020: AuditCycle = {
+  id: "cycle-2020", year: 2020, label: "2020 Annual Audit",
+  status: "CLOSED", startDate: "2020-04-01", endDate: "2020-06-30", closedAt: "2021-01-06",
+};
+export const auditCycle2021: AuditCycle = {
+  id: "cycle-2021", year: 2021, label: "2021 Annual Audit",
+  status: "CLOSED", startDate: "2021-04-01", endDate: "2021-06-30", closedAt: "2022-01-04",
+};
+export const auditCycle2022: AuditCycle = {
+  id: "cycle-2022", year: 2022, label: "2022 Annual Audit",
+  status: "CLOSED", startDate: "2022-04-01", endDate: "2022-06-30", closedAt: "2023-01-05",
+};
+export const auditCycle2023: AuditCycle = {
+  id: "cycle-2023", year: 2023, label: "2023 Annual Audit",
+  status: "CLOSED", startDate: "2023-04-01", endDate: "2023-06-30", closedAt: "2024-01-08",
+};
+
+export const submissions2020 = makeHistoricalSubs("cycle-2020", 2020, 4000);
+export const submissions2021 = makeHistoricalSubs("cycle-2021", 2021, 3000);
+export const submissions2022 = makeHistoricalSubs("cycle-2022", 2022, 2000);
+export const submissions2023 = makeHistoricalSubs("cycle-2023", 2023, 1000);
+
 // ─── 2024 Historical Cycle ────────────────────────────────────────────────────
 
 export const auditCycle2024: AuditCycle = {
@@ -223,9 +298,10 @@ export const cityStats = {
 
 // Historical trend data for charts
 export const trendData = [
-  { cycle: "2023 S1", average: 3.21, compliant: 3, total: 54 },
-  { cycle: "2023 S2", average: 3.45, compliant: 8, total: 54 },
-  { cycle: "2024 S1", average: 3.68, compliant: 14, total: 54 },
-  { cycle: "2024 S2", average: 3.82, compliant: 19, total: 54 },
-  { cycle: "2025 S1", average: cityStats.cityAverage, compliant: cityStats.fullyCompliant, total: 54 },
+  { cycle: "2020", average: 2.89, compliant: 1, total: 54 },
+  { cycle: "2021", average: 3.08, compliant: 2, total: 54 },
+  { cycle: "2022", average: 3.29, compliant: 6, total: 54 },
+  { cycle: "2023", average: 3.52, compliant: 11, total: 54 },
+  { cycle: "2024", average: 3.71, compliant: 19, total: 54 },
+  { cycle: "2025", average: cityStats.cityAverage, compliant: cityStats.fullyCompliant, total: 54 },
 ];

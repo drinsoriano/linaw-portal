@@ -1,16 +1,10 @@
 import { useState } from "react";
 import { Bell, Search, ChevronDown } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useSubmissions } from "../../context/SubmissionsContext";
 import { useNavigate } from "react-router-dom";
 import { ROLE_LABELS } from "../../types";
 import { cn } from "../../lib/utils";
-
-const MOCK_NOTIFICATIONS = [
-  { id: 1, title: "Bagong Kalsada submission validated", time: "2h ago", read: false, type: "SUCCESS" },
-  { id: 2, title: "3 submissions pending CENRO review", time: "5h ago", read: false, type: "WARNING" },
-  { id: 3, title: "Audit cycle 2025 S1 is now active", time: "1d ago", read: true, type: "INFO" },
-  { id: 4, title: "WCF5 CAP deadline approaching — Banlic", time: "2d ago", read: true, type: "WARNING" },
-];
 
 const NOTIF_COLORS = {
   SUCCESS: "bg-green-500",
@@ -21,10 +15,18 @@ const NOTIF_COLORS = {
 
 export function Header() {
   const { user, logout } = useAuth();
+  const { activeCycle } = useSubmissions();
   const navigate = useNavigate();
   const [showNotif, setShowNotif] = useState(false);
   const [showUser, setShowUser] = useState(false);
-  const unreadCount = MOCK_NOTIFICATIONS.filter((n) => !n.read).length;
+
+  const notifications = [
+    { id: 1, title: "Bagong Kalsada submission validated", time: "2h ago", read: false, type: "SUCCESS" },
+    { id: 2, title: "3 submissions pending CENRO review", time: "5h ago", read: false, type: "WARNING" },
+    { id: 3, title: `${activeCycle.label} is now active`, time: "1d ago", read: true, type: "INFO" },
+    { id: 4, title: "WCF5 CAP deadline approaching — Banlic", time: "2d ago", read: true, type: "WARNING" },
+  ];
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 gap-4 flex-shrink-0">
@@ -66,7 +68,7 @@ export function Header() {
               <span className="text-xs text-slate-400">{unreadCount} unread</span>
             </div>
             <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-              {MOCK_NOTIFICATIONS.map((n) => (
+              {notifications.map((n) => (
                 <li
                   key={n.id}
                   className={cn(

@@ -4,8 +4,16 @@ import type { AuditSubmission, AuditCycle, CycleStatus, SubmissionStatus } from 
 import {
   submissions as mockSubmissions,
   submissions2024,
+  submissions2023,
+  submissions2022,
+  submissions2021,
+  submissions2020,
   auditCycle as defaultCycle,
   auditCycle2024,
+  auditCycle2023,
+  auditCycle2022,
+  auditCycle2021,
+  auditCycle2020,
 } from "../data/submissions";
 import { barangays } from "../data/barangays";
 import { indicators } from "../data/indicators";
@@ -32,22 +40,36 @@ const STORAGE_KEY = "linaw_audit_submissions";
 const CYCLES_KEY = "linaw_audit_cycles";
 const ACTIVE_CYCLE_KEY = "linaw_active_cycle_id";
 
+const SEED_SUBS = [...submissions2020, ...submissions2021, ...submissions2022, ...submissions2023, ...submissions2024, ...mockSubmissions];
+const SEED_CYCLES = [auditCycle2020, auditCycle2021, auditCycle2022, auditCycle2023, auditCycle2024, defaultCycle];
+
 export function SubmissionsProvider({ children }: { children: ReactNode }) {
+
   const [submissions, setSubmissions] = useState<AuditSubmission[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? (JSON.parse(stored) as AuditSubmission[]) : [...submissions2024, ...mockSubmissions];
+      if (!stored) return SEED_SUBS;
+      const storedSubs = JSON.parse(stored) as AuditSubmission[];
+      // Merge any seed submissions whose IDs are missing from stored data (adds new historical years)
+      const existingIds = new Set(storedSubs.map((s) => s.id));
+      const missing = SEED_SUBS.filter((s) => !existingIds.has(s.id));
+      return missing.length > 0 ? [...missing, ...storedSubs] : storedSubs;
     } catch {
-      return mockSubmissions;
+      return SEED_SUBS;
     }
   });
 
   const [cycles, setCycles] = useState<AuditCycle[]>(() => {
     try {
       const stored = localStorage.getItem(CYCLES_KEY);
-      return stored ? (JSON.parse(stored) as AuditCycle[]) : [auditCycle2024, defaultCycle];
+      if (!stored) return SEED_CYCLES;
+      const storedCycles = JSON.parse(stored) as AuditCycle[];
+      // Merge any seed cycles whose IDs are missing from stored data
+      const existingIds = new Set(storedCycles.map((c) => c.id));
+      const missing = SEED_CYCLES.filter((c) => !existingIds.has(c.id));
+      return missing.length > 0 ? [...missing, ...storedCycles] : storedCycles;
     } catch {
-      return [defaultCycle];
+      return SEED_CYCLES;
     }
   });
 
@@ -60,7 +82,7 @@ export function SubmissionsProvider({ children }: { children: ReactNode }) {
       const storedCycles = localStorage.getItem(CYCLES_KEY);
       const knownCycles: AuditCycle[] = storedCycles
         ? (JSON.parse(storedCycles) as AuditCycle[])
-        : [auditCycle2024, defaultCycle];
+        : [auditCycle2020, auditCycle2021, auditCycle2022, auditCycle2023, auditCycle2024, defaultCycle];
       if (knownCycles.some((c) => c.id === storedId)) return storedId;
     } catch { /* fall through */ }
 
@@ -128,8 +150,8 @@ export function SubmissionsProvider({ children }: { children: ReactNode }) {
       year,
       label: `${year} Annual Audit`,
       status: "ACTIVE",
-      startDate: `${year}-01-01`,
-      endDate: `${year}-12-31`,
+      startDate: `${year}-04-01`,  // Q2 — official audit window
+      endDate: `${year}-06-30`,
     };
 
     const newSubs: AuditSubmission[] = barangays.map((brgy) => ({

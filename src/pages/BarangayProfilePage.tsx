@@ -5,8 +5,8 @@ import {
   Phone, Mail, Edit, Building2,
 } from "lucide-react";
 import { barangays } from "../data/barangays";
-import { submissions } from "../data/submissions";
 import { useAuth } from "../context/AuthContext";
+import { useSubmissions } from "../context/SubmissionsContext";
 import { PageHeader } from "../components/shared/PageHeader";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { ScoreBadge } from "../components/shared/ScoreBadge";
@@ -16,10 +16,12 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 export function BarangayProfilePage() {
   const { user, hasRole } = useAuth();
+  const { submissions, activeCycle } = useSubmissions();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [districtFilter, setDistrictFilter] = useState<string>("All");
   const [selectedBarangay, setSelectedBarangay] = useState<string | null>(null);
+  const cycleSubs = submissions.filter((s) => s.cycleId === activeCycle.id);
 
   // Restrict barangay-scoped users to own barangay
   const isRestricted = hasRole("BARANGAY_SECRETARY", "BARANGAY_COUNCILOR", "BARANGAY_CAPTAIN");
@@ -37,7 +39,7 @@ export function BarangayProfilePage() {
   });
 
   const selected = selectedBarangay ? barangays.find((b) => b.id === selectedBarangay) : null;
-  const selectedSub = selected ? submissions.find((s) => s.barangayId === selected.id) : null;
+  const selectedSub = selected ? cycleSubs.find((s) => s.barangayId === selected.id) : null;
 
   // Auto-select first barangay for restricted users
   useEffect(() => {
@@ -89,7 +91,7 @@ export function BarangayProfilePage() {
               ) : (
                 <ul className="divide-y divide-slate-50">
                   {filtered.map((brgy) => {
-                    const sub = submissions.find((s) => s.barangayId === brgy.id);
+                    const sub = cycleSubs.find((s) => s.barangayId === brgy.id);
                     const isActive = selectedBarangay === brgy.id;
                     return (
                       <li key={brgy.id}>

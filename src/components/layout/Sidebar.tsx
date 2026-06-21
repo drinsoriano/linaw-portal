@@ -5,7 +5,7 @@ import {
   BarChart3, GitBranch, SearchCode, FileText,
   Users, Settings, LogOut, Leaf, ChevronLeft, ChevronRight,
   Shield, MessageSquare, Truck, Wallet, Recycle,
-  AlertCircle, BookOpen, Trophy, Globe, Megaphone, Phone,
+  AlertCircle, BookOpen, Trophy, Globe, Megaphone, Phone, FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../context/AuthContext";
@@ -37,6 +37,8 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Feedback Management", to: "/cenro/feedback", icon: MessageSquare, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
       { label: "Compliance Results", to: "/results", icon: BarChart3, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
       { label: "Reports", to: "/reports", icon: FileText, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
+      { label: "Audit Management", to: "/audit", icon: ClipboardList, roles: ["CENRO_EVALUATOR"] },
+      { label: "Consolidated Report", to: "/cenro/consolidated", icon: FileSpreadsheet, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
       { label: "Contact Info", to: "/cenro/contact", icon: Phone, roles: ["CENRO_EVALUATOR", "SYSTEM_ADMIN"] },
     ],
   },

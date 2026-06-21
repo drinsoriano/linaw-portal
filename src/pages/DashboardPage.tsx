@@ -1,9 +1,10 @@
-// no useState needed — all data is derived from imports
+import { useMemo } from "react";
 import {
   Building2, CheckCircle2, TrendingUp, AlertTriangle,
   BarChart3, FileText,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useSubmissions } from "../context/SubmissionsContext";
 import { PageHeader } from "../components/shared/PageHeader";
 import { StatCard } from "../components/shared/StatCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
@@ -14,7 +15,7 @@ import { ComplianceTrendChart } from "../components/charts/ComplianceTrendChart"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { barangays } from "../data/barangays";
-import { submissions, cityStats, trendData } from "../data/submissions";
+import { trendData } from "../data/submissions";
 import { useNavigate } from "react-router-dom";
 import { CATEGORY_SHORT } from "../types";
 
@@ -33,11 +34,35 @@ const radarData = Object.entries(CATEGORY_SHORT).map(([key, label]) => ({
 
 export function DashboardPage() {
   const { user, hasRole } = useAuth();
+  const { submissions, activeCycle } = useSubmissions();
   const navigate = useNavigate();
   const isPublic = hasRole("CITIZEN");
 
-  // Build barangay score chart data
-  const chartData = submissions
+  const cycleSubs = useMemo(
+    () => submissions.filter((s) => s.cycleId === activeCycle.id),
+    [submissions, activeCycle.id]
+  );
+
+  const cityStats = useMemo(() => {
+    const scored = cycleSubs.filter((s) => s.overallScore !== undefined);
+    const cityAvg =
+      scored.length > 0
+        ? scored.reduce((acc, s) => acc + (s.overallScore ?? 0), 0) / scored.length
+        : 0;
+    return {
+      totalBarangays: barangays.length,
+      validated: cycleSubs.filter((s) => s.status === "VALIDATED").length,
+      reviewed: cycleSubs.filter((s) => s.status === "REVIEWED").length,
+      submitted: cycleSubs.filter((s) => s.status === "SUBMITTED").length,
+      draft: cycleSubs.filter((s) => s.status === "DRAFT" || s.status === "RETURNED_ENCODER").length,
+      fullyCompliant: scored.filter((s) => (s.overallScore ?? 0) >= 4.21).length,
+      mostlyCompliant: scored.filter((s) => { const sc = s.overallScore ?? 0; return sc >= 3.41 && sc < 4.21; }).length,
+      partiallyCompliant: scored.filter((s) => { const sc = s.overallScore ?? 0; return sc >= 2.61 && sc < 3.41; }).length,
+      cityAverage: parseFloat(cityAvg.toFixed(2)),
+    };
+  }, [cycleSubs]);
+
+  const chartData = cycleSubs
     .filter((s) => s.overallScore !== undefined)
     .sort((a, b) => (b.overallScore ?? 0) - (a.overallScore ?? 0))
     .map((s) => {
@@ -49,8 +74,7 @@ export function DashboardPage() {
       };
     });
 
-  // Recent submissions
-  const recentSubs = submissions
+  const recentSubs = cycleSubs
     .filter((s) => s.status !== "DRAFT")
     .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))
     .slice(0, 8);
@@ -65,7 +89,7 @@ export function DashboardPage() {
             ? `${user.barangayName} — Compliance Overview`
             : "City-Wide Compliance Dashboard"
         }
-        subtitle="Calamba City RA 9003 Compliance Monitoring — 2025 First Semester"
+        subtitle={`Calamba City RA 9003 Compliance Monitoring — ${activeCycle.label}`}
       >
         {!isPublic && (
           <Button variant="outline" size="sm" onClick={() => navigate("/reports")}>
@@ -92,11 +116,11 @@ export function DashboardPage() {
           icon={CheckCircle2}
           iconColor="text-green-600"
           iconBg="bg-green-100"
-          trend={{ value: 8, label: "vs last semester", positive: true }}
+          trend={{ value: 8, label: "vs last cycle", positive: true }}
         />
         <StatCard
           title="City Average Score"
-          value={cityStats.cityAverage.toFixed(2)}
+          value={cityStats.cityAverage > 0 ? cityStats.cityAverage.toFixed(2) : "—"}
           subtitle="Overall compliance score"
           icon={TrendingUp}
           iconColor="text-purple-600"
@@ -108,7 +132,7 @@ export function DashboardPage() {
               ? "text-blue-700"
               : "text-yellow-700"
           }
-          trend={{ value: 5.2, label: "vs 2024 S2", positive: true }}
+          trend={{ value: 5.2, label: "vs prior cycle", positive: true }}
         />
         <StatCard
           title="Fully Compliant"
@@ -142,20 +166,26 @@ export function DashboardPage() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Bar chart */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Barangay Compliance Scores</CardTitle>
             <CardDescription>
-              {chartData.length} barangays with validated scores — sorted by score. Dashed lines: benchmark (4.21) and tolerance (3.41).
+              {chartData.length > 0
+                ? `${chartData.length} barangays with validated scores — sorted by score. Dashed lines: benchmark (4.21) and tolerance (3.41).`
+                : `No validated scores yet for ${activeCycle.label}.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            <BarangayScoreChart data={chartData} height={300} />
+            {chartData.length > 0 ? (
+              <BarangayScoreChart data={chartData} height={300} />
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-slate-400 text-sm">
+                Scores will appear here once barangays submit their audits.
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Radar chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Category Breakdown</CardTitle>
@@ -169,7 +199,6 @@ export function DashboardPage() {
 
       {/* Trend + Recent activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Trend */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Compliance Trend</CardTitle>
@@ -180,7 +209,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent submissions */}
         {!isPublic && (
           <Card>
             <CardHeader>
@@ -188,33 +216,37 @@ export function DashboardPage() {
               <CardDescription>Latest submission updates</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <ul className="space-y-3">
-                {recentSubs.map((sub) => {
-                  const brgy = barangays.find((b) => b.id === sub.barangayId);
-                  return (
-                    <li
-                      key={sub.id}
-                      className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
-                      onClick={() => navigate(`/results/${sub.id}`)}
-                    >
-                      <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <BarChart3 className="h-4 w-4 text-green-700" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-800 truncate">
-                          {brgy?.name}
-                        </p>
-                        <StatusBadge status={sub.status} />
-                      </div>
-                      {sub.overallScore && (
-                        <span className="text-xs font-bold text-slate-700">
-                          {sub.overallScore.toFixed(2)}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+              {recentSubs.length > 0 ? (
+                <ul className="space-y-3">
+                  {recentSubs.map((sub) => {
+                    const brgy = barangays.find((b) => b.id === sub.barangayId);
+                    return (
+                      <li
+                        key={sub.id}
+                        className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
+                        onClick={() => navigate(`/results/${sub.id}`)}
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                          <BarChart3 className="h-4 w-4 text-green-700" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">
+                            {brgy?.name}
+                          </p>
+                          <StatusBadge status={sub.status} />
+                        </div>
+                        {sub.overallScore && (
+                          <span className="text-xs font-bold text-slate-700">
+                            {sub.overallScore.toFixed(2)}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-xs text-slate-400 py-4 text-center">No submissions yet for this cycle.</p>
+              )}
               <Button
                 variant="ghost"
                 size="sm"

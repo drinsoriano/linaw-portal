@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ChevronUp, ChevronDown, FileUp,
   AlertCircle, Clock, Eye,
-  CheckCircle2, RefreshCw,
+  CheckCircle2, RefreshCw, Save,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useSubmissions } from "../context/SubmissionsContext";
@@ -18,7 +18,8 @@ import { Textarea } from "../components/ui/textarea";
 import { Progress } from "../components/ui/progress";
 import { indicators } from "../data/indicators";
 import { barangays } from "../data/barangays";
-import type { IndicatorCategory, SubmissionStatus } from "../types";
+import { computeOverallScore, computeCategoryScore } from "../lib/scoring";
+import type { IndicatorCategory, SubmissionStatus, IndicatorResponse } from "../types";
 import { CATEGORY_LABELS } from "../types";
 import { cn } from "../lib/utils";
 
@@ -58,6 +59,7 @@ export function AuditChecklistPage() {
   const isCouncilor = hasRole("BARANGAY_COUNCILOR");
   const isCaptain = hasRole("BARANGAY_CAPTAIN");
   const isAdmin = hasRole("SYSTEM_ADMIN");
+  const isCenro = hasRole("CENRO_EVALUATOR");
 
   const barangayId = user?.barangayId ?? "brgy-001";
   const submission = getLatest(barangayId);
@@ -115,7 +117,34 @@ export function AuditChecklistPage() {
     );
   }
 
+  const handleSave = (silent = false) => {
+    const updatedResponses: IndicatorResponse[] = indicators.map((ind) => {
+      const existing = submission.responses.find((r) => r.indicatorId === ind.id);
+      return {
+        indicatorId: ind.id,
+        score: localScores[ind.id]?.score ?? null,
+        notes: localScores[ind.id]?.notes ?? "",
+        evidenceCount: existing?.evidenceCount ?? 0,
+        cenroScore: existing?.cenroScore,
+      };
+    });
+
+    const allAnswered = updatedResponses.every((r) => r.score !== null);
+    const scores = allAnswered
+      ? {
+          overallScore: computeOverallScore(updatedResponses, indicators).overallScore,
+          categoryScores: Object.fromEntries(
+            CATEGORY_KEYS.map((cat) => [cat, computeCategoryScore(updatedResponses, indicators, cat).averageScore])
+          ) as Record<IndicatorCategory, number>,
+        }
+      : {};
+
+    updateSubmission(submission.id, { responses: updatedResponses, ...scores });
+    if (!silent) toast({ title: "Progress Saved", description: `${totalAnswered} / ${indicators.length} indicators saved.`, variant: "success" });
+  };
+
   const handleFinalize = () => {
+    handleSave(true);
     captainApprove(submission.id, user?.name ?? "Punong Barangay");
     toast({ title: "Self-Assessment Finalized", description: "The RA 9003 audit has been certified and finalized by the Barangay Captain.", variant: "success" });
   };
@@ -132,6 +161,14 @@ export function AuditChecklistPage() {
         subtitle={`${brgy?.name ?? ""} — ${activeCycle.label} · RA 9003 Self-Assessment`}
       >
         <StatusBadge status={submission.status} />
+
+        {/* Captain — save progress */}
+        {isCaptain && isEditing && (
+          <Button size="sm" variant="outline" onClick={() => handleSave()}>
+            <Save className="h-4 w-4" />
+            Save Progress
+          </Button>
+        )}
 
         {/* Captain — finalize self-assessment */}
         {isCaptain && isEditing && (
@@ -160,8 +197,8 @@ export function AuditChecklistPage() {
         </div>
       )}
 
-      {/* Admin — cycle management */}
-      {isAdmin && (
+      {/* CENRO / Admin — cycle management */}
+      {(isAdmin || isCenro) && (
         <Card className="border-indigo-200 bg-indigo-50/50">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-3">
@@ -205,13 +242,16 @@ export function AuditChecklistPage() {
                 </div>
               )}
             </div>
+            <p className="text-[11px] text-slate-400 italic">
+              Note: The audit cycle runs annually during Q2 (April – June).
+            </p>
             {closedCycles.length > 0 && (
               <div className="pt-2 border-t border-indigo-100">
                 <p className="text-xs font-semibold text-slate-500 mb-1.5">Past Cycles</p>
                 <div className="flex flex-wrap gap-2">
                   {closedCycles.map((c) => (
                     <span key={c.id} className="text-[11px] bg-white border border-slate-200 rounded-full px-3 py-1 text-slate-500">
-                      {c.label}
+                      {c.label} — CLOSED
                     </span>
                   ))}
                 </div>

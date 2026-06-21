@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Input } from "../components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { indicators } from "../data/indicators";
-import { submissions } from "../data/submissions";
+import { useSubmissions } from "../context/SubmissionsContext";
 import { barangays } from "../data/barangays";
 import { IndicatorBarChart } from "../components/charts/IndicatorBarChart";
 import { CategoryRadarChart } from "../components/charts/CategoryRadarChart";
@@ -25,15 +25,17 @@ const CATEGORY_KEYS: IndicatorCategory[] = [
 
 export function ComplianceResultsPage() {
   const { hasRole } = useAuth();
+  const { submissions, activeCycle } = useSubmissions();
   const [search, setSearch] = useState("");
   const [selectedBarangay, setSelectedBarangay] = useState<string>("brgy-001");
   const [view, setView] = useState<"barangay" | "city">(
     hasRole("CENRO_EVALUATOR", "SYSTEM_ADMIN", "RESEARCHER") ? "city" : "barangay"
   );
 
-  const validatedSubs = submissions.filter((s) => s.overallScore !== undefined);
-  const selectedSub = submissions.find((s) => s.barangayId === selectedBarangay) ?? submissions[0];
-  const brgy = barangays.find((b) => b.id === selectedSub.barangayId);
+  const cycleSubs = submissions.filter((s) => s.cycleId === activeCycle.id);
+  const validatedSubs = cycleSubs.filter((s) => s.overallScore !== undefined);
+  const selectedSub = cycleSubs.find((s) => s.barangayId === selectedBarangay) ?? cycleSubs[0];
+  const brgy = selectedSub ? barangays.find((b) => b.id === selectedSub.barangayId) : undefined;
 
   const filteredBarangays = barangays.filter((b) =>
     b.name.toLowerCase().includes(search.toLowerCase())
@@ -43,7 +45,7 @@ export function ComplianceResultsPage() {
   const buildIndicatorData = (cat: IndicatorCategory) => {
     const catInds = indicators.filter((i) => i.category === cat).sort((a, b) => a.sortOrder - b.sortOrder);
     return catInds.map((ind) => {
-      const resp = selectedSub.responses.find((r) => r.indicatorId === ind.id);
+      const resp = selectedSub?.responses.find((r) => r.indicatorId === ind.id);
       const score = resp?.cenroScore ?? resp?.score ?? 0;
       return { code: ind.code, name: ind.name, score };
     });
@@ -52,7 +54,7 @@ export function ComplianceResultsPage() {
   // Radar data for selected barangay
   const radarData = CATEGORY_KEYS.map((cat) => ({
     category: CATEGORY_SHORT[cat],
-    score: selectedSub.categoryScores?.[cat] ?? 0,
+    score: selectedSub?.categoryScores?.[cat] ?? 0,
     benchmark: 4.21,
   }));
 

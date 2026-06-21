@@ -8,7 +8,7 @@ import { PageHeader } from "../components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../components/ui/select";
-import { submissions } from "../data/submissions";
+import { useSubmissions } from "../context/SubmissionsContext";
 import { barangays } from "../data/barangays";
 import { cn } from "../lib/utils";
 
@@ -65,11 +65,13 @@ const RECENT_REPORTS = [
 
 export function ReportsPage() {
   useAuth(); // preserves auth context requirement
+  const { submissions, activeCycle } = useSubmissions();
   const [selectedReportType, setSelectedReportType] = useState<string | null>(null);
   const [selectedBarangay, setSelectedBarangay] = useState<string>("brgy-001");
   const [generating, setGenerating] = useState(false);
 
-  const validatedBarangays = submissions
+  const cycleSubs = submissions.filter((s) => s.cycleId === activeCycle.id);
+  const validatedBarangays = cycleSubs
     .filter((s) => s.status === "VALIDATED" || s.status === "REVIEWED")
     .map((s) => barangays.find((b) => b.id === s.barangayId))
     .filter(Boolean);

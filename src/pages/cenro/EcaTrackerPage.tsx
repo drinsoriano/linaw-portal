@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Search, CheckCircle2, Clock, AlertTriangle, FileText, RotateCcw } from "lucide-react";
+import { Search, CheckCircle2, Clock, AlertTriangle, FileText, RotateCcw, Eye, Download } from "lucide-react";
+import { PDFDownloadLink } from "@react-pdf/renderer";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { EcaReportPDF } from "../../components/shared/EcaReportPDF";
 import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
@@ -27,13 +29,16 @@ const STATUS_ICONS: Record<EcaStatus, typeof CheckCircle2> = {
   DRAFT: FileText,
 };
 
+type EnrichedReport = EcaReport & { barangayName: string };
+
 export function EcaTrackerPage() {
   const { reports, setStatus } = useEca();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [quarterFilter, setQuarterFilter] = useState<string>("All");
-  const [actionReport, setActionReport] = useState<EcaReport & { barangayName: string } | null>(null);
+  const [viewReport, setViewReport] = useState<EnrichedReport | null>(null);
+  const [actionReport, setActionReport] = useState<EnrichedReport | null>(null);
   const [actionType, setActionType] = useState<"accept" | "revise" | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
 
@@ -61,7 +66,7 @@ export function EcaTrackerPage() {
     if (!actionReport || !actionType) return;
     if (actionType === "accept") {
       setStatus(actionReport.id, "ACCEPTED");
-      toast({ title: "ECA Report Accepted", description: `${actionReport.id} marked as accepted.`, variant: "success" });
+      toast({ title: "ECA Report Accepted", description: `${actionReport.barangayName} Q${actionReport.quarter} ${actionReport.year} marked as accepted.`, variant: "success" });
     } else {
       setStatus(actionReport.id, "FOR_REVISION", feedbackText);
       toast({ title: "Report Returned for Revision", description: "Feedback sent to barangay.", variant: "warning" });
@@ -69,6 +74,7 @@ export function EcaTrackerPage() {
     setActionReport(null);
     setActionType(null);
     setFeedbackText("");
+    setViewReport(null);
   };
 
   return (
@@ -140,7 +146,7 @@ export function EcaTrackerPage() {
                 <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500">Quarter / Year</th>
                 <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500">Status</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden md:table-cell">Submitted</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden lg:table-cell">Submitted By</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 hidden lg:table-cell">Certified By</th>
                 <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500">Actions</th>
               </tr>
             </thead>
@@ -162,13 +168,24 @@ export function EcaTrackerPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-xs text-slate-500 hidden md:table-cell">
-                      {r.submittedAt ?? <span className="text-slate-300">—</span>}
+                      {r.certifiedAt ?? r.submittedAt ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="py-3 px-4 text-xs text-slate-600 hidden lg:table-cell">
-                      {r.submittedBy ?? <span className="text-slate-300">—</span>}
+                      {r.certifiedBy ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {r.status !== "DRAFT" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-slate-600 hover:text-slate-900 text-xs"
+                            onClick={() => setViewReport(r)}
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            View
+                          </Button>
+                        )}
                         {r.status === "PENDING" && (
                           <>
                             <Button
@@ -219,7 +236,122 @@ export function EcaTrackerPage() {
         </div>
       </Card>
 
-      {/* Action dialog */}
+      {/* View Report Dialog */}
+      <Dialog open={!!viewReport} onOpenChange={() => setViewReport(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+              <span>{viewReport?.barangayName} — ECA Report</span>
+              {viewReport && (
+                <span className="text-xs font-normal text-slate-500">
+                  Q{viewReport.quarter} {viewReport.year}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewReport && (
+            <div className="space-y-5 py-1">
+              {/* Status + PDF download */}
+              <div className="flex items-center justify-between">
+                <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", ECA_STATUS_COLORS[viewReport.status])}>
+                  {ECA_STATUS_LABELS[viewReport.status]}
+                </span>
+                <PDFDownloadLink
+                  document={<EcaReportPDF report={viewReport} barangayName={viewReport.barangayName} />}
+                  fileName={`ECA-Q${viewReport.quarter}-${viewReport.year}-Brgy${viewReport.barangayName.replace(/\s+/g, "")}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button size="sm" variant="outline" disabled={loading} className="text-xs">
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      {loading ? "Generating PDF…" : "Download PDF"}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              </div>
+
+              {/* Approval chain */}
+              <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
+                <div className="px-4 py-2 bg-slate-50 rounded-t-lg">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Approval Chain</p>
+                </div>
+                {[
+                  { role: "Barangay Secretary", label: "Prepared by", name: viewReport.preparedBy, date: viewReport.preparedAt },
+                  { role: "Committee Chair (Councilor)", label: "Endorsed by", name: viewReport.endorsedBy, date: viewReport.endorsedAt },
+                  { role: "Punong Barangay (Captain)", label: "Certified by", name: viewReport.certifiedBy, date: viewReport.certifiedAt },
+                ].map((step) => (
+                  <div key={step.role} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                    <div>
+                      <p className="text-xs text-slate-400">{step.label}</p>
+                      <p className={cn("font-medium", step.name ? "text-slate-800" : "text-slate-300")}>
+                        {step.name ?? "—"}
+                      </p>
+                      <p className="text-xs text-slate-500">{step.role}</p>
+                    </div>
+                    <p className="text-xs text-slate-400">{step.date ?? "—"}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Sections data */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Report Content</p>
+                {viewReport.sections.map((section) => {
+                  const filledFields = section.fields.filter((f) => f.value !== "" && f.value !== null && f.value !== undefined);
+                  if (filledFields.length === 0) return null;
+                  return (
+                    <div key={section.id} className="rounded-lg border border-slate-200 overflow-hidden">
+                      <div className="bg-[#0f2d1a] px-3 py-2">
+                        <p className="text-xs font-semibold text-green-200">{section.label}</p>
+                      </div>
+                      <div className="divide-y divide-slate-50">
+                        {filledFields.map((field) => (
+                          <div key={field.id} className="px-3 py-2 text-sm">
+                            <p className="text-xs text-slate-500 mb-0.5">{field.label}</p>
+                            <p className="text-slate-800 font-medium break-words">{String(field.value)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* CENRO feedback if any */}
+              {viewReport.cenroFeedback && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-semibold text-amber-700 mb-1">Previous CENRO Feedback</p>
+                  <p className="text-sm text-amber-900">{viewReport.cenroFeedback}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer actions */}
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setViewReport(null)}>Close</Button>
+            {viewReport?.status === "PENDING" && (
+              <>
+                <Button
+                  variant="outline"
+                  className="text-amber-700 border-amber-200 hover:bg-amber-50"
+                  onClick={() => { setActionReport(viewReport); setActionType("revise"); }}
+                >
+                  Return for Revision
+                </Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => { setActionReport(viewReport); setActionType("accept"); }}
+                >
+                  Accept Report
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm action dialog */}
       <Dialog open={!!actionReport} onOpenChange={() => { setActionReport(null); setActionType(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -265,4 +397,3 @@ export function EcaTrackerPage() {
     </div>
   );
 }
-

@@ -28,6 +28,7 @@ import { EcaTrackerPage } from "./pages/cenro/EcaTrackerPage";
 import { PerformanceRankingPage } from "./pages/cenro/PerformanceRankingPage";
 import { HaulerAccreditationPage } from "./pages/cenro/HaulerAccreditationPage";
 import { FeedbackManagementPage } from "./pages/cenro/FeedbackManagementPage";
+import { ConsolidatedEcaPage } from "./pages/cenro/ConsolidatedEcaPage";
 
 // Barangay pages
 import { BarangayDashboard } from "./pages/barangay/BarangayDashboard";
@@ -109,6 +110,7 @@ function AppRoutes() {
         <Route path="/cenro/ranking" element={<PerformanceRankingPage />} />
         <Route path="/cenro/haulers" element={<HaulerAccreditationPage />} />
         <Route path="/cenro/feedback" element={<FeedbackManagementPage />} />
+        <Route path="/cenro/consolidated" element={<ConsolidatedEcaPage />} />
 
         {/* Barangay */}
         <Route path="/barangay/dashboard" element={<BarangayDashboard />} />

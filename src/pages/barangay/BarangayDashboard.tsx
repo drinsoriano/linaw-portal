@@ -9,7 +9,7 @@ import { ScoreBadge, ScoreBar } from "../../components/shared/ScoreBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { barangays } from "../../data/barangays";
-import { submissions } from "../../data/submissions";
+import { useSubmissions } from "../../context/SubmissionsContext";
 import { mockRecyclers } from "../../data/recyclers";
 import { useEca } from "../../context/EcaContext";
 import { useFeedback } from "../../context/FeedbackContext";
@@ -19,13 +19,14 @@ import { cn } from "../../lib/utils";
 export function BarangayDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { getLatest } = useEca();
+  const { getLatest: getLatestEca } = useEca();
   const { getByBarangay } = useFeedback();
+  const { getLatest: getLatestAudit, activeCycle } = useSubmissions();
 
   const barangayId = user?.barangayId ?? "brgy-001";
   const brgy = barangays.find((b) => b.id === barangayId);
-  const submission = submissions.find((s) => s.barangayId === barangayId);
-  const latestEca = getLatest(barangayId);
+  const submission = getLatestAudit(barangayId);
+  const latestEca = getLatestEca(barangayId);
   const feedbacks = getByBarangay(barangayId);
   const openFeedbacks = feedbacks.filter((f) => f.status !== "COMPLETED").length;
   const criticalFeedbacks = feedbacks.filter((f) => f.priority === "CRITICAL" || f.priority === "HIGH").length;
@@ -40,7 +41,7 @@ export function BarangayDashboard() {
     <div className="space-y-6">
       <PageHeader
         title={brgy?.name ?? "My Barangay"}
-        subtitle={`${brgy?.district ?? ""} · Compliance Overview · 2025 First Semester`}
+        subtitle={`${brgy?.district ?? ""} · Compliance Overview · ${activeCycle.label}`}
       >
         <Button size="sm" onClick={() => navigate("/barangay/eca")}>
           <BookOpen className="h-4 w-4" />

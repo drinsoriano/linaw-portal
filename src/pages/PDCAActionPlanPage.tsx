@@ -9,7 +9,7 @@ import { ScoreBadge } from "../components/shared/ScoreBadge";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { mockCorrectiveActions } from "../data/correctiveActions";
-import { submissions } from "../data/submissions";
+import { useSubmissions } from "../context/SubmissionsContext";
 import { indicators } from "../data/indicators";
 import { cn } from "../lib/utils";
 
@@ -61,14 +61,16 @@ const PDCA_PHASES = [
 
 export function PDCAActionPlanPage() {
   const { user, hasRole } = useAuth();
+  const { getLatest } = useSubmissions();
   const [expandedCap, setExpandedCap] = useState<string | null>("cap-001");
   const [, setShowAddModal] = useState(false);
 
   const isEditable = hasRole("SYSTEM_ADMIN", "CENRO_EVALUATOR", "BARANGAY_CAPTAIN");
   const barangayName = user?.barangayName ?? "Bagong Kalsada";
 
-  const sub = submissions.find((s) => s.barangayId === (user?.barangayId ?? "brgy-001")) ?? submissions[0];
-  const flaggedIndicators = sub.responses
+  const barangayId = user?.barangayId ?? "brgy-001";
+  const sub = getLatest(barangayId);
+  const flaggedIndicators = (sub?.responses ?? [])
     .filter((r) => (r.cenroScore ?? r.score ?? 0) < 3.41 && (r.cenroScore ?? r.score ?? 0) > 0)
     .map((r) => {
       const ind = indicators.find((i) => i.id === r.indicatorId);

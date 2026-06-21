@@ -7,19 +7,25 @@ import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { barangays } from "../../data/barangays";
-import { submissions } from "../../data/submissions";
+import { useSubmissions } from "../../context/SubmissionsContext";
 import type { District } from "../../types";
 import { cn } from "../../lib/utils";
 
 const DISTRICTS: string[] = ["All Districts", "District I", "District II", "District III", "District IV", "Poblacion"];
 
 export function PerformanceRankingPage() {
+  const { submissions, activeCycle, cycles } = useSubmissions();
+  const sortedCycles = [...cycles].sort((a, b) => b.year - a.year);
+  const [selectedCycleId, setSelectedCycleId] = useState(activeCycle.id);
+  const selectedCycle = cycles.find((c) => c.id === selectedCycleId) ?? activeCycle;
   const [search, setSearch] = useState("");
   const [districtFilter, setDistrictFilter] = useState("All Districts");
 
+  const cycleSubs = submissions.filter((s) => s.cycleId === selectedCycleId);
+
   const ranked = barangays
     .map((brgy) => {
-      const sub = submissions.find((s) => s.barangayId === brgy.id);
+      const sub = cycleSubs.find((s) => s.barangayId === brgy.id);
       return {
         id: brgy.id,
         name: brgy.name,
@@ -62,8 +68,20 @@ export function PerformanceRankingPage() {
     <div className="space-y-6">
       <PageHeader
         title="Barangay Performance Ranking"
-        subtitle="All 54 barangays ranked by overall compliance score — 2025 First Semester"
+        subtitle={`All 54 barangays ranked by overall compliance score — ${selectedCycle.label}`}
       >
+        <Select value={selectedCycleId} onValueChange={setSelectedCycleId}>
+          <SelectTrigger className="w-44 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {sortedCycles.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.label}{c.id === activeCycle.id ? " (Active)" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <span className="inline-block h-3 w-3 rounded-sm bg-green-200 border border-green-400" />
           Top 3
