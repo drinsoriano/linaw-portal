@@ -32,6 +32,7 @@ interface SubmissionsContextValue {
   captainApprove: (id: string, by: string) => void;
   // Cycle management (SYSTEM_ADMIN only)
   openNewCycle: (year: number) => void;
+  switchActiveCycle: (cycleId: string) => void;
 }
 
 const SubmissionsContext = createContext<SubmissionsContextValue | null>(null);
@@ -101,6 +102,34 @@ export function SubmissionsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(ACTIVE_CYCLE_KEY, activeCycleId);
   }, [activeCycleId]);
 
+  // Guard: if the active cycle has no submissions (e.g. stale localStorage after a clear),
+  // auto-seed 54 blank DRAFTs so barangay pages never show "No submission found".
+  useEffect(() => {
+    const date = new Date().toISOString().split("T")[0];
+    setSubmissions((prev) => {
+      if (prev.some((s) => s.cycleId === activeCycleId)) return prev;
+      const yearMatch = activeCycleId.match(/cycle-(\d{4})/);
+      const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+      return [
+        ...prev,
+        ...barangays.map((brgy) => ({
+          id: `sub-${brgy.id}-${year}`,
+          barangayId: brgy.id,
+          cycleId: activeCycleId,
+          status: "DRAFT" as SubmissionStatus,
+          responses: indicators.map((ind) => ({
+            indicatorId: ind.id,
+            score: null,
+            notes: "",
+            evidenceCount: 0,
+          })),
+          createdAt: date,
+          updatedAt: date,
+        })),
+      ];
+    });
+  }, [activeCycleId]);
+
   const activeCycle = cycles.find((c) => c.id === activeCycleId) ?? cycles[0] ?? defaultCycle;
 
   const now = () => new Date().toISOString().split("T")[0];
@@ -140,6 +169,43 @@ export function SubmissionsProvider({ children }: { children: ReactNode }) {
       validatedAt: now(),
       captainRemarks: `Approved by ${by}`,
     });
+
+  // Makes any cycle the active one — used by CENRO to switch simulation year.
+  // Also seeds 54 blank DRAFTs for the target cycle if submissions don't exist yet.
+  const switchActiveCycle = (cycleId: string) => {
+    setCycles((prev) =>
+      prev.map((c) =>
+        c.id === cycleId
+          ? { ...c, status: "ACTIVE" as CycleStatus }
+          : c.status === "ACTIVE"
+          ? { ...c, status: "CLOSED" as CycleStatus, closedAt: c.closedAt ?? now() }
+          : c
+      )
+    );
+    setActiveCycleId(cycleId);
+    setSubmissions((prev) => {
+      const hasSubs = prev.some((s) => s.cycleId === cycleId);
+      if (hasSubs) return prev;
+      // Extract 4-digit year from id like "cycle-2026" or "cycle-2025-1"
+      const yearMatch = cycleId.match(/cycle-(\d{4})/);
+      const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+      const newSubs: AuditSubmission[] = barangays.map((brgy) => ({
+        id: `sub-${brgy.id}-${year}`,
+        barangayId: brgy.id,
+        cycleId,
+        status: "DRAFT" as SubmissionStatus,
+        responses: indicators.map((ind) => ({
+          indicatorId: ind.id,
+          score: null,
+          notes: "",
+          evidenceCount: 0,
+        })),
+        createdAt: now(),
+        updatedAt: now(),
+      }));
+      return [...prev, ...newSubs];
+    });
+  };
 
   // Opens a new annual audit cycle, closing the current one and seeding 54 blank drafts
   const openNewCycle = (year: number) => {
@@ -196,6 +262,7 @@ export function SubmissionsProvider({ children }: { children: ReactNode }) {
         returnToCouncilor,
         captainApprove,
         openNewCycle,
+        switchActiveCycle,
       }}
     >
       {children}

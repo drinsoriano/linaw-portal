@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronUp, ChevronDown, FileUp,
@@ -13,6 +13,7 @@ import { ScoreBadge, ScoreBar } from "../components/shared/ScoreBadge";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
 import { Progress } from "../components/ui/progress";
@@ -53,7 +54,7 @@ interface IndicatorState {
 export function AuditChecklistPage() {
   const { user, hasRole } = useAuth();
   const navigate = useNavigate();
-  const { submissions, activeCycle, cycles, getLatest, captainApprove, updateSubmission, openNewCycle } = useSubmissions();
+  const { submissions, activeCycle, cycles, getLatest, captainApprove, updateSubmission, openNewCycle, switchActiveCycle } = useSubmissions();
   const { toast } = useToast();
 
   const isCouncilor = hasRole("BARANGAY_COUNCILOR");
@@ -77,6 +78,18 @@ export function AuditChecklistPage() {
   const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<IndicatorCategory>("SWM_PROGRAMS");
   const [showNewCycleConfirm, setShowNewCycleConfirm] = useState(false);
+  const [selectedCycleId, setSelectedCycleId] = useState<string>(activeCycle.id);
+
+  // Reset local score state when the active cycle changes (e.g. CENRO switches year mid-session)
+  useEffect(() => {
+    const init: Record<string, IndicatorState> = {};
+    indicators.forEach((ind) => {
+      const resp = submission?.responses.find((r) => r.indicatorId === ind.id);
+      init[ind.id] = { score: resp?.score ?? null, notes: resp?.notes ?? "" };
+    });
+    setLocalScores(init);
+    setExpandedIndicator(null);
+  }, [submission?.id]);
 
   const activeCycleSubs = submissions.filter((s) => s.cycleId === activeCycle.id);
   const validatedCount = activeCycleSubs.filter((s) => s.status === "VALIDATED").length;
@@ -103,6 +116,188 @@ export function AuditChecklistPage() {
   const timelineIndex = submission
     ? STATUS_ORDER.indexOf(submission.status === "VALIDATED" ? "VALIDATED" : "DRAFT")
     : 0;
+
+  // ─── CENRO / Admin management view ──────────────────────────────────────────
+  if (isAdmin || isCenro) {
+    const sortedCycles = [...cycles].sort((a, b) => b.year - a.year);
+    const viewCycle = cycles.find((c) => c.id === selectedCycleId) ?? activeCycle;
+    const viewSubs = submissions.filter((s) => s.cycleId === viewCycle.id);
+    const valCount = viewSubs.filter((s) => s.status === "VALIDATED").length;
+    const draftCount = viewSubs.filter((s) => s.status === "DRAFT").length;
+    const inProgressCount = viewSubs.filter(
+      (s) => s.status === "SUBMITTED" || s.status === "RETURNED_ENCODER"
+    ).length;
+    const completionPct = Math.round((valCount / Math.max(1, viewSubs.length)) * 100);
+    const nextYearExists = cycles.some((c) => c.year === activeCycle.year + 1);
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Audit Management"
+          subtitle={`RA 9003 Self-Assessment — Active: ${activeCycle.label}`}
+        >
+          <Select value={selectedCycleId} onValueChange={setSelectedCycleId}>
+            <SelectTrigger className="w-52 bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {sortedCycles.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.label}{c.status === "ACTIVE" ? " (Active)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </PageHeader>
+
+        {/* Cycle Management */}
+        <Card className="border-indigo-200 bg-indigo-50/50">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Open New Audit Cycle</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Active: <span className="font-medium text-slate-700">{activeCycle.label}</span>
+                  {" · "}
+                  {validatedCount} / {activeCycleSubs.length} barangays validated
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {nextYearExists ? (
+                  <p className="text-xs text-slate-500 italic">
+                    {activeCycle.year + 1} cycle already open — select it from the dropdown above.
+                  </p>
+                ) : !showNewCycleConfirm ? (
+                  <Button size="sm" variant="outline" onClick={() => setShowNewCycleConfirm(true)}>
+                    <RefreshCw className="h-4 w-4" />
+                    Open {activeCycle.year + 1} Cycle
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs text-amber-700">
+                      Open {activeCycle.year + 1} cycle? 54 blank audits will be created.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => setShowNewCycleConfirm(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                      onClick={() => {
+                        openNewCycle(activeCycle.year + 1);
+                        setShowNewCycleConfirm(false);
+                        setSelectedCycleId(`cycle-${activeCycle.year + 1}`);
+                        toast({
+                          title: "New Cycle Opened",
+                          description: `${activeCycle.year + 1} Annual Audit is now active. All 54 barangays start with a blank DRAFT.`,
+                          variant: "success",
+                        });
+                      }}
+                    >
+                      Confirm
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            {closedCycles.length > 0 && (
+              <div className="pt-2 border-t border-indigo-100">
+                <p className="text-xs font-semibold text-slate-500 mb-1.5">Closed Cycles</p>
+                <div className="flex flex-wrap gap-2">
+                  {[...closedCycles].sort((a, b) => b.year - a.year).map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedCycleId(c.id)}
+                      className="text-[11px] bg-white border border-slate-200 rounded-full px-3 py-1 text-slate-500 hover:border-indigo-300 hover:text-indigo-700 transition-colors"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Viewing a non-active cycle — offer to set it as active */}
+        {viewCycle.id !== activeCycle.id && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Eye className="h-4 w-4 text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-700">
+                Viewing <span className="font-semibold">{viewCycle.label}</span> — read-only.
+                Barangay captains are currently on{" "}
+                <span className="font-semibold">{activeCycle.label}</span>.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 shrink-0"
+              onClick={() => {
+                switchActiveCycle(viewCycle.id);
+                toast({
+                  title: "Active Cycle Changed",
+                  description: `${viewCycle.label} is now active. Barangay captains will see this year's audit.`,
+                  variant: "success",
+                });
+              }}
+            >
+              Set as Active
+            </Button>
+          </div>
+        )}
+
+        {/* Cycle stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: "Validated", value: valCount, cls: "text-green-700" },
+            { label: "In Progress", value: inProgressCount, cls: "text-blue-700" },
+            { label: "Draft", value: draftCount, cls: "text-slate-700" },
+            { label: "Completion", value: `${completionPct}%`, cls: "text-indigo-700" },
+          ].map((item) => (
+            <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+              <p className={`text-3xl font-black ${item.cls}`}>{item.value}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{item.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Barangay status list */}
+        <Card>
+          <CardContent className="p-0">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <p className="text-sm font-semibold text-slate-800">
+                Barangay Audit Status — {viewCycle.label}
+              </p>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
+              {barangays.map((b) => {
+                const sub = viewSubs.find((s) => s.barangayId === b.id);
+                return (
+                  <div key={b.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{b.name}</p>
+                      <p className="text-xs text-slate-400">{b.district}</p>
+                    </div>
+                    {sub ? (
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={sub.status} />
+                        {sub.overallScore !== undefined && (
+                          <ScoreBadge score={sub.overallScore} size="sm" />
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No submission</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!submission) {
     return (
@@ -197,69 +392,6 @@ export function AuditChecklistPage() {
         </div>
       )}
 
-      {/* CENRO / Admin — cycle management */}
-      {(isAdmin || isCenro) && (
-        <Card className="border-indigo-200 bg-indigo-50/50">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">Audit Cycle Management</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Active: <span className="font-medium text-slate-700">{activeCycle.label}</span>
-                  {" · "}
-                  {validatedCount} / {activeCycleSubs.length} barangays validated
-                </p>
-              </div>
-              {!showNewCycleConfirm ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={cycles.some((c) => c.year === activeCycle.year + 1)}
-                  onClick={() => setShowNewCycleConfirm(true)}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Open {activeCycle.year + 1} Cycle
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-xs text-amber-700">
-                    Open {activeCycle.year + 1} cycle? 54 blank audits will be created.
-                  </p>
-                  <Button size="sm" variant="outline" onClick={() => setShowNewCycleConfirm(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-indigo-600 hover:bg-indigo-700"
-                    onClick={() => {
-                      openNewCycle(activeCycle.year + 1);
-                      setShowNewCycleConfirm(false);
-                      toast({ title: "New Cycle Opened", description: `${activeCycle.year + 1} Annual Audit cycle is now active. All 54 barangays start with a blank DRAFT.`, variant: "success" });
-                    }}
-                  >
-                    Confirm
-                  </Button>
-                </div>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-400 italic">
-              Note: The audit cycle runs annually during Q2 (April – June).
-            </p>
-            {closedCycles.length > 0 && (
-              <div className="pt-2 border-t border-indigo-100">
-                <p className="text-xs font-semibold text-slate-500 mb-1.5">Past Cycles</p>
-                <div className="flex flex-wrap gap-2">
-                  {closedCycles.map((c) => (
-                    <span key={c.id} className="text-[11px] bg-white border border-slate-200 rounded-full px-3 py-1 text-slate-500">
-                      {c.label} — CLOSED
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Status timeline */}
       <Card>
