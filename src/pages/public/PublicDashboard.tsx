@@ -5,7 +5,7 @@ import {
   BookOpen, Calendar, ChevronDown, ChevronRight, Recycle, Factory,
   FileImage, FileText, File, FolderOpen,
   Phone, MessageSquare, Mail, ExternalLink, MessageCircle,
-  Megaphone, Users, Paperclip,
+  Megaphone, Users, Paperclip, MapPin, Globe,
 } from "lucide-react";
 import type { EcaReport, IndicatorCategory, IECActivity } from "../../types";
 import { barangays } from "../../data/barangays";
@@ -119,12 +119,15 @@ export function PublicDashboard() {
   const [search, setSearch] = useState("");
   const [ecaSearch, setEcaSearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
+  const [contactChannelFilter, setContactChannelFilter] = useState<string>("All");
+  const [contactDistrictFilter, setContactDistrictFilter] = useState<string>("All");
   const [iecSearch, setIecSearch] = useState("");
   const [iecTypeFilter, setIecTypeFilter] = useState("All");
   const [viewAttachActivity, setViewAttachActivity] = useState<IECActivity | null>(null);
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
   const [expandedEcaId, setExpandedEcaId] = useState<string | null>(null);
   const [expandedEvidenceId, setExpandedEvidenceId] = useState<string | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const { submissions, activeCycle, cycles } = useSubmissions();
   const { reports, getByPeriod } = useEca();
   const { getContactByBarangay, cenroContact } = useContact();
@@ -226,6 +229,38 @@ export function PublicDashboard() {
   const totalDivertedKg = periodEcaReports
     .map((r) => parseFloat(getField(r, "wg8")) || 0)
     .reduce((a, b) => a + b, 0);
+
+  // Contact directory
+  const DISTRICTS = ["District I", "District II", "District III", "District IV", "Poblacion"] as const;
+
+  const allContactRows = barangays.map((brgy) => {
+    const contact = getContactByBarangay(brgy.id);
+    return {
+      brgy,
+      callPhone:     contact?.callPhone    ?? brgy.contactPhone,
+      smsPhone:      contact?.smsPhone,
+      email:         contact?.email        ?? brgy.contactEmail,
+      facebookPage:  contact?.facebookPage,
+      messengerLink: contact?.messengerLink,
+      hasRichData:   !!contact,
+      updatedAt:     contact?.updatedAt,
+    };
+  });
+
+  const selectedContactRow = selectedContactId
+    ? allContactRows.find((r) => r.brgy.id === selectedContactId)
+    : null;
+
+  const filteredContacts = allContactRows.filter(({ brgy, callPhone, smsPhone, email, facebookPage, messengerLink }) => {
+    const matchSearch   = brgy.name.toLowerCase().includes(contactSearch.toLowerCase());
+    const matchDistrict = contactDistrictFilter === "All" || brgy.district === contactDistrictFilter;
+    const matchChannel  = contactChannelFilter === "All"
+      || (contactChannelFilter === "phone"     && !!(callPhone || smsPhone))
+      || (contactChannelFilter === "email"     && !!email)
+      || (contactChannelFilter === "facebook"  && !!facebookPage)
+      || (contactChannelFilter === "messenger" && !!messengerLink);
+    return matchSearch && matchDistrict && matchChannel;
+  });
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -895,91 +930,314 @@ export function PublicDashboard() {
           </TabsContent>
 
           {/* ── Contact Us Tab ── */}
-          <TabsContent value="contact" className="mt-6 space-y-6">
+          <TabsContent value="contact" className="mt-6 space-y-5">
+
+            {/* Section header */}
+            <div>
+              <h2 className="text-base font-bold text-slate-900">CENRO & Barangay Contact Directory</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Contact information is provided for SWM-related coordination, reporting, and public inquiries.
+              </p>
+            </div>
+
             {/* CENRO Card */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                    <Building2 className="h-5 w-5 text-green-700" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">CENRO — City Environment & Natural Resources Office</CardTitle>
-                    <CardDescription>Calamba City · For RA 9003 compliance inquiries and audit concerns</CardDescription>
+            <Card className="border-l-4 border-l-[#16a34a] overflow-hidden">
+              <CardContent className="p-0">
+                <div className="px-6 pt-5 pb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                      <Building2 className="h-6 w-6 text-green-700" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900 leading-tight">
+                        CENRO — City Environment & Natural Resources Office
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">Calamba City · RA 9003 compliance inquiries and audit concerns</p>
+                      <div className="mt-3">
+                        <ContactChannels
+                          callPhone={cenroContact.callPhone}
+                          smsPhone={cenroContact.smsPhone}
+                          email={cenroContact.email}
+                          facebookPage={cenroContact.facebookPage}
+                          messengerLink={cenroContact.messengerLink}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <ContactChannels
-                  callPhone={cenroContact.callPhone}
-                  smsPhone={cenroContact.smsPhone}
-                  email={cenroContact.email}
-                  facebookPage={cenroContact.facebookPage}
-                  messengerLink={cenroContact.messengerLink}
-                />
-                {cenroContact.address && (
-                  <p className="mt-3 text-xs text-slate-500 flex items-start gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-slate-400" />
-                    {cenroContact.address}
-                  </p>
+                {(cenroContact.address || cenroContact.updatedAt) && (
+                  <div className="border-t border-slate-100 px-6 py-3 flex items-center justify-between gap-4 flex-wrap bg-slate-50/60">
+                    {cenroContact.address && (
+                      <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        {cenroContact.address}
+                      </p>
+                    )}
+                    {cenroContact.updatedAt && (
+                      <p className="text-[10px] text-slate-400 ml-auto shrink-0">
+                        Last updated: {cenroContact.updatedAt}
+                      </p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Barangay Directory */}
+            {/* Directory Control Panel */}
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div>
-                    <CardTitle className="text-base">Barangay Contact Directory</CardTitle>
-                    <CardDescription>54 barangays of Calamba City — reach your barangay hall directly</CardDescription>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      placeholder="Search barangay..."
-                      value={contactSearch}
-                      onChange={(e) => setContactSearch(e.target.value)}
-                      className="pl-9 w-52"
-                    />
-                  </div>
+              <CardContent className="p-5 space-y-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search barangay name..."
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                    className="pl-10 h-10 text-sm"
+                  />
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-slate-100">
-                  {barangays
-                    .filter((b) => b.name.toLowerCase().includes(contactSearch.toLowerCase()))
-                    .map((brgy) => {
-                      const contact = getContactByBarangay(brgy.id);
-                      const callPhone = contact?.callPhone ?? brgy.contactPhone;
-                      const smsPhone = contact?.smsPhone;
-                      const email = contact?.email ?? brgy.contactEmail;
-                      const facebookPage = contact?.facebookPage;
-                      const messengerLink = contact?.messengerLink;
-                      return (
-                        <div key={brgy.id} className="px-6 py-4">
-                          <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-900">{brgy.name}</p>
-                              <p className="text-xs text-slate-500">{brgy.district} · {brgy.captainName}</p>
-                            </div>
-                            <ContactChannels
-                              callPhone={callPhone}
-                              smsPhone={smsPhone}
-                              email={email}
-                              facebookPage={facebookPage}
-                              messengerLink={messengerLink}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  {barangays.filter((b) => b.name.toLowerCase().includes(contactSearch.toLowerCase())).length === 0 && (
-                    <div className="py-8 text-center text-sm text-slate-400">No barangays match your search.</div>
-                  )}
+
+                {/* Channel filter */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-slate-500 w-16 shrink-0">Channel:</span>
+                  {(
+                    [
+                      { value: "All",       label: "All",       icon: null },
+                      { value: "phone",     label: "Phone",     icon: Phone },
+                      { value: "email",     label: "Email",     icon: Mail },
+                      { value: "facebook",  label: "Facebook",  icon: Globe },
+                      { value: "messenger", label: "Messenger", icon: MessageCircle },
+                    ] as const
+                  ).map(({ value, label, icon: Icon }) => (
+                    <button
+                      key={value}
+                      onClick={() => setContactChannelFilter(value)}
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-semibold border transition-colors flex items-center gap-1",
+                        contactChannelFilter === value
+                          ? "bg-[#16a34a] text-white border-[#16a34a]"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-green-400"
+                      )}
+                    >
+                      {Icon && <Icon className="h-3 w-3" />}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* District filter */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-slate-500 w-16 shrink-0">District:</span>
+                  {(["All", ...DISTRICTS] as const).map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setContactDistrictFilter(d)}
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-semibold border transition-colors",
+                        contactDistrictFilter === d
+                          ? "bg-slate-700 text-white border-slate-700"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                      )}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-xs text-slate-400">
+                    {filteredContacts.length} of 54 barangays · Last updated: Jan 2026
+                  </p>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Barangay Contact Tile Grid */}
+            {filteredContacts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredContacts.map(({ brgy, callPhone, smsPhone, email, facebookPage, messengerLink, hasRichData }) => (
+                  <div
+                    key={brgy.id}
+                    className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-green-300 transition-all overflow-hidden flex flex-col"
+                  >
+                    {/* Green accent strip */}
+                    <div className="h-1 bg-[#16a34a]" />
+
+                    <div className="p-4 flex-1 flex flex-col">
+                      {/* Header: name + district */}
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="text-sm font-bold text-slate-900 leading-tight">{brgy.name}</p>
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 shrink-0 mt-0.5">
+                          {brgy.district}
+                        </span>
+                      </div>
+
+                      {/* Captain */}
+                      <p className="text-xs text-slate-500">{brgy.captainName}</p>
+
+                      {/* Status + channel icons row */}
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                          hasRichData ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400"
+                        )}>
+                          {hasRichData ? "● Complete" : "○ Basic Info"}
+                        </span>
+
+                        {/* Available channel icon dots */}
+                        <div className="flex items-center gap-1">
+                          {callPhone && (
+                            <span className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center" title="Phone">
+                              <Phone className="h-2.5 w-2.5 text-green-700" />
+                            </span>
+                          )}
+                          {smsPhone && (
+                            <span className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center" title="Mobile / SMS">
+                              <MessageSquare className="h-2.5 w-2.5 text-blue-600" />
+                            </span>
+                          )}
+                          {email && (
+                            <span className="h-5 w-5 rounded-full bg-slate-100 flex items-center justify-center" title="Email">
+                              <Mail className="h-2.5 w-2.5 text-slate-500" />
+                            </span>
+                          )}
+                          {facebookPage && (
+                            <span className="h-5 w-5 rounded-full bg-indigo-100 flex items-center justify-center" title="Facebook">
+                              <Globe className="h-2.5 w-2.5 text-indigo-600" />
+                            </span>
+                          )}
+                          {messengerLink && (
+                            <span className="h-5 w-5 rounded-full bg-purple-100 flex items-center justify-center" title="Messenger">
+                              <MessageCircle className="h-2.5 w-2.5 text-purple-600" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Spacer */}
+                      <div className="flex-1 min-h-3" />
+
+                      {/* View details button */}
+                      <button
+                        onClick={() => setSelectedContactId(brgy.id)}
+                        className="mt-4 w-full py-1.5 rounded-lg text-xs font-semibold border border-[#16a34a] text-[#16a34a] hover:bg-[#16a34a] hover:text-white transition-colors"
+                      >
+                        View contact details
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-sm text-slate-400">No barangays match your filters.</div>
+            )}
+
+            {/* Contact Detail Modal */}
+            <Dialog open={!!selectedContactRow} onOpenChange={(open) => { if (!open) setSelectedContactId(null); }}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-base">
+                    <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                      <Building2 className="h-4 w-4 text-green-700" />
+                    </div>
+                    {selectedContactRow?.brgy.name}
+                  </DialogTitle>
+                </DialogHeader>
+
+                {selectedContactRow && (() => {
+                  const { brgy, callPhone, smsPhone, email, facebookPage, messengerLink, hasRichData } = selectedContactRow;
+                  const hasAnyContact = !!(callPhone || smsPhone || email || facebookPage || messengerLink);
+                  return (
+                    <div className="space-y-4 pt-1">
+                      {/* Meta */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500">
+                          {brgy.district}
+                        </span>
+                        <span className={cn(
+                          "rounded-full px-2.5 py-0.5 text-[10px] font-semibold",
+                          hasRichData ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400"
+                        )}>
+                          {hasRichData ? "● Complete" : "○ Basic Info"}
+                        </span>
+                      </div>
+
+                      {/* Captain */}
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <span>{brgy.captainName}</span>
+                      </div>
+
+                      {/* Channel pills */}
+                      {hasAnyContact ? (
+                        <div className="flex flex-wrap gap-2">
+                          {callPhone && (
+                            <a
+                              href={`tel:${callPhone}`}
+                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors text-slate-700"
+                            >
+                              <Phone className="h-3 w-3 shrink-0" />
+                              {callPhone}
+                            </a>
+                          )}
+                          {smsPhone && (
+                            <a
+                              href={`sms:${smsPhone}`}
+                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors text-slate-700"
+                            >
+                              <MessageSquare className="h-3 w-3 shrink-0" />
+                              {smsPhone}
+                            </a>
+                          )}
+                          {email && (
+                            <a
+                              href={`mailto:${email}`}
+                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-400 transition-colors text-slate-700"
+                            >
+                              <Mail className="h-3 w-3 shrink-0" />
+                              {email}
+                            </a>
+                          )}
+                          {facebookPage && (
+                            <a
+                              href={`https://www.facebook.com/${facebookPage.replace(/^https?:\/\/(www\.)?facebook\.com\//i, "").replace(/\s/g, "")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors text-slate-700"
+                            >
+                              <Globe className="h-3 w-3 shrink-0" />
+                              {facebookPage}
+                            </a>
+                          )}
+                          {messengerLink && (
+                            <a
+                              href={messengerLink.startsWith("http") ? messengerLink : `https://${messengerLink}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border border-slate-200 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-colors text-slate-700"
+                            >
+                              <MessageCircle className="h-3 w-3 shrink-0" />
+                              Messenger
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">No contact details on file for this barangay.</p>
+                      )}
+
+                      {/* Address */}
+                      {brgy.address && (
+                        <div className="flex items-start gap-2 text-xs text-slate-500 border-t border-slate-100 pt-3">
+                          <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                          <span>{brgy.address}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* ── IEC Activities Tab ── */}
